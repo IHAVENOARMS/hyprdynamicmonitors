@@ -494,9 +494,15 @@ func (m *MonitorSpec) ToHyprMonitors() (*hypr.MonitorSpec, error) {
 	return monitor, nil
 }
 
-// ToLua renders the monitor as a single-line hl.monitor call.
+// ToLua renders the monitor as a single-line hl.monitor call that fully resets
+// the output's rule in Hyprland (used for applying).
 func (m *MonitorSpec) ToLua() string {
 	return m.toHyprSpec().ToLuaInline()
+}
+
+// ToLuaSummary renders a single-line hl.monitor call without default values (display only).
+func (m *MonitorSpec) ToLuaSummary() string {
+	return m.toHyprSpec().ToLuaSummary()
 }
 
 type MonitorRectangle struct {

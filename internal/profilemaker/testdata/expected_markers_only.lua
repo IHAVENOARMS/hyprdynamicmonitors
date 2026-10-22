@@ -6,6 +6,12 @@ hl.monitor({
 	scale = 1.5,
 	transform = 0,
 	vrr = false,
+	disabled = false,
+	bitdepth = 8,
+	cm = "srgb",
+	sdrbrightness = 1,
+	sdrsaturation = 1,
+	mirror = "",
 })
 hl.monitor({
 	output = "desc:New Monitor B",
@@ -14,6 +20,7 @@ hl.monitor({
 	scale = 1,
 	transform = 0,
 	vrr = true,
+	disabled = false,
 	bitdepth = 10,
 	cm = "hdr",
 	sdrbrightness = 1.1,
@@ -27,6 +34,12 @@ hl.monitor({
 	scale = 1,
 	transform = 0,
 	vrr = false,
+	disabled = false,
+	bitdepth = 8,
+	cm = "srgb",
+	sdrbrightness = 1,
+	sdrsaturation = 1,
+	mirror = "",
 })
 hl.monitor({
 	output = "desc:Dell #Whatever",
@@ -35,5 +48,11 @@ hl.monitor({
 	scale = 2,
 	transform = 2,
 	vrr = false,
+	disabled = false,
+	bitdepth = 8,
+	cm = "srgb",
+	sdrbrightness = 1,
+	sdrsaturation = 1,
+	mirror = "",
 })
 -- <<<<< TUI AUTO END

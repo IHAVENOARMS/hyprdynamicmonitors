@@ -41,7 +41,7 @@ func (h *HyprPreviewPane) View() string {
 	}
 
 	for _, monitor := range h.monitors {
-		hyprCommand := monitor.ToLua()
+		hyprCommand := monitor.ToLuaSummary()
 		if h.clamp {
 			hyprCommand = ClampTextTo(compactLua(monitor, h.width), h.width)
 		}
@@ -55,7 +55,7 @@ func (h *HyprPreviewPane) View() string {
 // keeping both the monitor identity and its settings visible.
 func compactLua(monitor *MonitorSpec, maxLen int) string {
 	const minKept = 8
-	line := monitor.ToLua()
+	line := monitor.ToLuaSummary()
 	if maxLen < 0 || len(line) <= maxLen {
 		return line
 	}
@@ -76,7 +76,7 @@ func compactLua(monitor *MonitorSpec, maxLen int) string {
 }
 
 func luaFieldsOnly(monitor *MonitorSpec) string {
-	return strings.TrimSuffix(strings.TrimPrefix(monitor.ToLua(), "hl.monitor({ output = "), " })")
+	return strings.TrimSuffix(strings.TrimPrefix(monitor.ToLuaSummary(), "hl.monitor({ output = "), " })")
 }
 
 const shortenedMarker = "..."

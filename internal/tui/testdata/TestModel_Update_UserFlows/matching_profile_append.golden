@@ -11,14 +11,14 @@
 │  • Desc: BOE NE135A1M-NY1                         ││┃   6     scale = 2,                                                                                    │ 
 │  • Desc: Dell Inc. DELL U2723QE...                ││┃   7     transform = 0,                                                                                │ 
 │                                                   ││┃   8     vrr = true,                                                                                   │ 
-│New settings will be appended (or replaced         ││┃   9 })                                                                                                │ 
-│depending on the `<<<<<` markers position) when    ││┃  10 hl.monitor({                                                                                      │ 
-│applied (type `a`).                                ││┃  11     output = "desc:Dell Inc. DELL U2723QE 5YNK3H3",                                               │ 
-│                                                   ││┃  12     mode = "3840x2160@60",                                                                        │ 
-│If you're not running the daemon you likely want to││┃  13     position = "0x0",                                                                             │ 
-│follow up by rendering the profile into the hypr   ││┃  14     scale = 1.25,                                                                                 │ 
-│settings destination (type `R`).                   ││┃  15     transform = 0,                                                                                │ 
-│                                                   ││┃  16     vrr = false,                                                                                  │ 
+│New settings will be appended (or replaced         ││┃   9     disabled = false,                                                                             │ 
+│depending on the `<<<<<` markers position) when    ││┃  10     bitdepth = 8,                                                                                 │ 
+│applied (type `a`).                                ││┃  11     cm = "auto",                                                                                  │ 
+│                                                   ││┃  12     sdrbrightness = 1,                                                                            │ 
+│If you're not running the daemon you likely want to││┃  13     sdrsaturation = 1,                                                                            │ 
+│follow up by rendering the profile into the hypr   ││┃  14     mirror = "",                                                                                  │ 
+│settings destination (type `R`).                   ││┃  15 })                                                                                                │ 
+│                                                   ││┃  16 hl.monitor({                                                                                      │ 
 │                                                   │└────────────────────────────────────────────────────────────────────────────────────────────────────────┘ 
 │                                                   │┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐ 
 │                                                   ││Generated hypr config preview                                                                           │ 

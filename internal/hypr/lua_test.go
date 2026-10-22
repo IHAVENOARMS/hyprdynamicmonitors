@@ -27,13 +27,14 @@ func TestLuaString(t *testing.T) {
 func TestMonitorSpec_ToLua(t *testing.T) {
 	id := 1
 	tests := []struct {
-		name       string
-		monitor    *hypr.MonitorSpec
-		wantBlock  string
-		wantInline string
+		name        string
+		monitor     *hypr.MonitorSpec
+		wantBlock   string
+		wantInline  string
+		wantSummary string
 	}{
 		{
-			name: "enabled with description",
+			name: "enabled monitor writes every field so it resets an existing rule",
 			monitor: &hypr.MonitorSpec{
 				ID: &id, Name: "DP-1", Description: "Dell Inc. DELL U2719DC D6LPTS2",
 				Width: 2560, Height: 1440, RefreshRate: 59.951, X: -2560, Y: 0,
@@ -46,8 +47,17 @@ func TestMonitorSpec_ToLua(t *testing.T) {
 	scale = 1,
 	transform = 3,
 	vrr = false,
+	disabled = false,
+	bitdepth = 8,
+	cm = "srgb",
+	sdrbrightness = 1,
+	sdrsaturation = 1,
+	mirror = "",
 })`,
 			wantInline: `hl.monitor({ output = "desc:Dell Inc. DELL U2719DC D6LPTS2", mode = "2560x1440@59.951", ` +
+				`position = "-2560x0", scale = 1, transform = 3, vrr = false, disabled = false, bitdepth = 8, ` +
+				`cm = "srgb", sdrbrightness = 1, sdrsaturation = 1, mirror = "" })`,
+			wantSummary: `hl.monitor({ output = "desc:Dell Inc. DELL U2719DC D6LPTS2", mode = "2560x1440@59.951", ` +
 				`position = "-2560x0", scale = 1, transform = 3, vrr = false })`,
 		},
 		{
@@ -64,18 +74,21 @@ func TestMonitorSpec_ToLua(t *testing.T) {
 	scale = 1.5,
 	transform = 0,
 	vrr = true,
+	disabled = false,
 	bitdepth = 10,
 	cm = "hdr",
 	sdrbrightness = 1.2,
 	sdrsaturation = 0.95,
 	mirror = "DP-2",
 })`,
+			wantSummary: `hl.monitor({ output = "eDP-1", mode = "2880x1800@120", position = "0x0", scale = 1.5, ` +
+				`transform = 0, vrr = true, bitdepth = 10, cm = "hdr", sdrbrightness = 1.2, sdrsaturation = 0.95, mirror = "DP-2" })`,
 		},
 		{
-			name: "sdr values ignored without hdr, default presets omitted",
+			name: "sdr values reset without hdr, auto preset kept, no mirror resets mirroring",
 			monitor: &hypr.MonitorSpec{
 				ID: &id, Name: "eDP-1", Width: 1920, Height: 1080, RefreshRate: 60,
-				Scale: 1, ColorPreset: "srgb", SdrBrightness: 1.2, Mirror: "none",
+				Scale: 1, ColorPreset: "auto", SdrBrightness: 1.2, SdrSaturation: 1, Mirror: "none",
 			},
 			wantBlock: `hl.monitor({
 	output = "eDP-1",
@@ -84,7 +97,14 @@ func TestMonitorSpec_ToLua(t *testing.T) {
 	scale = 1,
 	transform = 0,
 	vrr = false,
+	disabled = false,
+	bitdepth = 8,
+	cm = "auto",
+	sdrbrightness = 1,
+	sdrsaturation = 1,
+	mirror = "",
 })`,
+			wantSummary: `hl.monitor({ output = "eDP-1", mode = "1920x1080@60", position = "0x0", scale = 1, transform = 0, vrr = false })`,
 		},
 		{
 			name: "disabled is a single line",
@@ -92,8 +112,9 @@ func TestMonitorSpec_ToLua(t *testing.T) {
 				ID: &id, Name: "eDP-1", Description: `Weird "Quoted" #1`, Disabled: true,
 				Width: 1920, Height: 1080,
 			},
-			wantBlock:  `hl.monitor({ output = "desc:Weird \"Quoted\" #1", disabled = true })`,
-			wantInline: `hl.monitor({ output = "desc:Weird \"Quoted\" #1", disabled = true })`,
+			wantBlock:   `hl.monitor({ output = "desc:Weird \"Quoted\" #1", disabled = true })`,
+			wantInline:  `hl.monitor({ output = "desc:Weird \"Quoted\" #1", disabled = true })`,
+			wantSummary: `hl.monitor({ output = "desc:Weird \"Quoted\" #1", disabled = true })`,
 		},
 	}
 	for _, tt := range tests {
@@ -101,6 +122,9 @@ func TestMonitorSpec_ToLua(t *testing.T) {
 			assert.Equal(t, tt.wantBlock, tt.monitor.ToLua())
 			if tt.wantInline != "" {
 				assert.Equal(t, tt.wantInline, tt.monitor.ToLuaInline())
+			}
+			if tt.wantSummary != "" {
+				assert.Equal(t, tt.wantSummary, tt.monitor.ToLuaSummary())
 			}
 		})
 	}

@@ -194,14 +194,21 @@ hl.monitor({
 	mode = "2880x1920@{{if isOnBattery}}60{{else}}120{{end}}",
 	position = "0x0",
 	scale = 2,
+	disabled = false,
 })
 {{- if $external }}
-hl.monitor({ output = "desc:{{$external.Description}}", mode = "2560x1440@60", position = "auto-right", scale = 1 })
+hl.monitor({ output = "desc:{{$external.Description}}", mode = "2560x1440@60", position = "auto-right", scale = 1, disabled = false })
 hl.workspace_rule({ workspace = "2", monitor = "desc:{{$external.Description}}" })
 {{- end }}
 ```
 
 Notes:
+- **`hl.monitor` merges, it does not replace.** A hyprlang `monitor=` line replaced the whole rule; `hl.monitor`
+  copies the existing rule for the same `output` string and only overwrites the fields you pass. If a monitor was
+  disabled earlier (by another profile or the TUI), a later `hl.monitor` without `disabled = false` keeps it disabled -
+  same for a leftover `mirror`, `cm`, `bitdepth`, etc. Write `disabled = false` (and ideally every field) for enabled
+  monitors. `freeze` and the TUI do this for you: they always emit `disabled = false, bitdepth = 8, cm = "srgb",
+  sdrbrightness = 1, sdrsaturation = 1, mirror = ""` unless the monitor uses other values.
 - Descriptions no longer need the hyprlang `##` escaping of `#`; they sit inside a Lua string. A description containing
   a double quote `"` (or a backslash) would need escaping (`\"`) inside the string.
 - Supported `hl.monitor` fields: `output`, `mode`, `position`, `scale`, `transform`, `vrr`, `bitdepth`, `cm`,
