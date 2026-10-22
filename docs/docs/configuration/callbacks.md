@@ -22,7 +22,7 @@ Override global callbacks for specific profiles:
 
 ```toml title="~/.config/hyprdynamicmonitors/config.toml"
 [profiles.gaming_setup]
-config_file = "hyprconfigs/gaming.conf"
+config_file = "hyprconfigs/gaming.lua"
 pre_apply_exec = "notify-send 'Gaming Mode' 'Activating high-performance profile'"
 post_apply_exec = "/usr/local/bin/gaming-mode-on.sh"
 ```
@@ -92,10 +92,13 @@ This ensures that a failing callback doesn't interrupt monitor configuration.
 
 ## Manual Hyprland Reload
 
-If you have `disable_autoreload = true` in Hyprland settings, use callbacks to reload manually:
+With the default `live_apply = true` (see [Overview](./overview#general-settings)), the daemon already runs the destination inside Hyprland after writing it, so no reload is needed even with `misc.disable_autoreload = true`.
+
+If you set `live_apply = false` and also have `disable_autoreload = true` in Hyprland settings, use callbacks to reload manually:
 
 ```toml title="~/.config/hyprdynamicmonitors/config.toml"
 [general]
+live_apply = false
 post_apply_exec = "hyprctl reload"
 ```
 
@@ -105,19 +108,23 @@ post_apply_exec = "hyprctl reload"
 
 ```toml title="~/.config/hyprdynamicmonitors/config.toml"
 [profiles.docked]
-config_file = "hyprconfigs/docked.conf"
+config_file = "hyprconfigs/docked.lua"
 post_apply_exec = "systemctl --user start docked-setup.service"
 
 [profiles.laptop_only]
-config_file = "hyprconfigs/laptop.conf"
+config_file = "hyprconfigs/laptop.lua"
 post_apply_exec = "systemctl --user stop docked-setup.service"
 ```
 
 ### Workspace Management
 
 ```toml
-post_apply_exec = "hyprctl dispatch workspace 1"  # Switch to workspace 1 after config change
+# Switch to workspace 1 after config change.
+# With a Lua config, `hyprctl dispatch X` is shorthand for `hl.dispatch(X)`.
+post_apply_exec = "hyprctl dispatch 'hl.dsp.focus({ workspace = 1 })'"
 ```
+
+Prefer callbacks for one-shot actions like this: with `live_apply` the destination file is re-executed on every apply, so it should only contain idempotent configuration.
 
 ### Application Restart
 

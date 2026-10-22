@@ -113,32 +113,32 @@ Then in your `home.nix`:
 
 ## Hyprland Integration
 
-:::warning Important: Source the Configuration File
+:::warning Important: Load the Configuration File
 
-After installing HyprDynamicMonitors and setting up your profiles, you **must** source the generated configuration file in your Hyprland config. This is a common step that's easy to miss!
+After installing HyprDynamicMonitors and setting up your profiles, you **must** load the generated configuration file from your Hyprland Lua config. This is a common step that's easy to miss!
 
-**Without this step, your monitor configurations won't be applied.**
+**Without this step, your monitor configurations won't be applied on Hyprland start.**
 
-The destination path [can be changed](../configuration/overview#general-settings) but defaults to `$HOME/.config/hypr/monitors.conf`.
+The destination path [can be changed](../configuration/overview#general-settings) but defaults to `$HOME/.config/hypr/hyprdynamicmonitors.lua`.
 
-Add the following to your Hyprland configuration:
+Add the following to your Hyprland configuration, after any other monitor configuration so it wins:
 
-```conf title="~/.config/hypr/hyprland.conf"
-# Source the auto-generated monitors configuration
-# Adjust the path to match your destination setting in config.toml
-source = ~/.config/hypr/monitors.conf
+```lua title="~/.config/hypr/hyprland.lua"
+-- Load the auto-generated monitors configuration (~/.config/hypr/hyprdynamicmonitors.lua)
+-- If you changed the destination in config.toml, adjust the module name
+-- (or use dofile("/absolute/path/to/destination.lua") for a file outside ~/.config/hypr)
+require("hyprdynamicmonitors")
 ```
 
-Or if using Home Manager with declarative Hyprland config:
+Or if you manage `hyprland.lua` declaratively with Home Manager, make sure the generated file includes that line, e.g.:
 
 ```nix
-wayland.windowManager.hyprland = {
-  enable = true;
-  extraConfig = ''
-    # Source the auto-generated monitors configuration
-    source = ~/.config/hypr/monitors.conf
-  '';
-};
+xdg.configFile."hypr/hyprland.lua".text = ''
+  -- ... the rest of your Hyprland Lua config ...
+
+  -- Load the auto-generated monitors configuration
+  require("hyprdynamicmonitors")
+'';
 ```
 
 :::

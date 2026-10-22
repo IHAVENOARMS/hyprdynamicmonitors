@@ -1,0 +1,54 @@
+-- Configuration generated for power state: {{.PowerState}}
+
+{{- $laptop := index .MonitorsByTag "LaptopScreen" -}}
+{{- $external := index .MonitorsByTag "ExternalScreen" -}}
+
+{{- if $laptop -}}
+{{- if isOnBattery }}
+-- Battery mode: Lower refresh rate to save power
+hl.monitor({ output = "{{$laptop.Name}}", mode = "2880x1920@60", position = "0x0", scale = 2, vrr = false })
+{{- else }}
+-- AC mode: Full performance
+hl.monitor({ output = "{{$laptop.Name}}", mode = "2880x1920@120", position = "0x0", scale = 2, vrr = true })
+{{- end -}}
+{{- end -}}
+
+{{- if $external -}}
+{{- if isOnAC }}
+-- AC mode: Enable external monitor
+hl.monitor({
+	output = "desc:{{$external.Description}}",
+	mode = "2560x2880@59.967",
+	position = "auto-left",
+	scale = 1.6,
+	transform = 3,
+})
+
+hl.workspace_rule({ workspace = "2", monitor = "{{$external.Name}}" })
+hl.workspace_rule({ workspace = "3", monitor = "{{$external.Name}}" })
+hl.workspace_rule({ workspace = "4", monitor = "{{$external.Name}}" })
+hl.workspace_rule({ workspace = "5", monitor = "{{$external.Name}}" })
+{{- else }}
+-- Battery mode: Disable external monitor to save power
+hl.monitor({ output = "desc:{{$external.Description}}", disabled = true })
+{{- end -}}
+{{- end }}
+
+-- Power-dependent settings
+{{- if isOnBattery }}
+-- Battery optimizations
+hl.config({
+	decoration = {
+		blur = { enabled = false },
+	},
+	animations = { enabled = false },
+})
+{{- else }}
+-- AC power: Full visual effects
+hl.config({
+	decoration = {
+		blur = { enabled = true, size = 8 },
+	},
+	animations = { enabled = true },
+})
+{{- end }}

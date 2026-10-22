@@ -1,0 +1,11 @@
+{{- $laptop := index .MonitorsByTag "laptop" -}}
+-- Configuration generated for power state: {{.PowerState}}
+
+{{- if $laptop -}}
+{{- if isOnBattery }}
+hl.monitor({ output = "{{$laptop.Name}}", mode = "2880x1920@60", position = "0x0", scale = 2, vrr = false })
+{{- else }}
+-- AC mode: Full performance
+hl.monitor({ output = "{{$laptop.Name}}", mode = "2880x1920@120", position = "0x0", scale = 2, vrr = true })
+{{- end -}}
+{{- end -}}

@@ -4,7 +4,15 @@ sidebar_position: 1
 
 # Templates
 
-Templates use Go template syntax for dynamic configuration generation based on connected monitors, power state, and lid state.
+Templates use Go template syntax for dynamic configuration generation based on connected monitors, power state, and lid state. The rendered output must be valid [Hyprland Lua](https://wiki.hypr.land/Configuring/Start/), typically `hl.monitor({ ... })` calls. By convention template files are named `*.lua.tmpl`.
+
+:::note Quoting
+Monitor names and descriptions are inserted inside Lua strings, e.g. `output = "desc:{{.Description}}"`. The old hyprlang `##` escaping of `#` is no longer needed; however, a description containing `"` (or `\`) would have to be escaped to keep the Lua string valid.
+:::
+
+:::caution Idempotency
+With `live_apply = true` (the default) the rendered file is re-executed inside Hyprland on every apply. Keep it to idempotent calls (`hl.monitor`, `hl.workspace_rule`, named `hl.window_rule`, `hl.config`). Do not put `hl.bind` or `hl.on` in templates; they would be registered again on every apply. Keep those in `~/.config/hypr/hyprland.lua`.
+:::
 
 ## Template Variables
 
@@ -14,8 +22,8 @@ The following variables are available in all templates:
 
 Current power state: `"AC"` or `"BAT"`
 
-```go
-{{.PowerState}}  # Returns "AC" or "BAT"
+```lua
+-- {{.PowerState}} renders as "AC" or "BAT"
 ```
 
 ### .LidState
@@ -24,8 +32,8 @@ Current lid state: `"UNKNOWN"`, `"Closed"`, or `"Opened"`
 
 Requires `--enable-lid-events` flag to be set.
 
-```go
-{{.LidState}}  # Returns "UNKNOWN", "Closed", or "Opened"
+```lua
+-- {{.LidState}} renders as "UNKNOWN", "Closed", or "Opened"
 ```
 
 ### .Monitors
@@ -48,11 +56,11 @@ Each monitor object has the following fields:
 | `DirectScanoutTo` | string | Direct scanout target |
 | `Solitary` | string | Solitary mode status |
 
-```go
+```lua
 {{range .Monitors}}
-# Monitor: {{.Name}} ({{.Description}})
-# Current format: {{.CurrentFormat}}
-# Disabled: {{.Disabled}}
+-- Monitor: {{.Name}} ({{.Description}})
+-- Current format: {{.CurrentFormat}}
+-- Disabled: {{.Disabled}}
 {{end}}
 ```
 
@@ -64,9 +72,9 @@ Each monitor object has the same fields as `.Monitors` (see above).
 
 Useful for disabling unexpected monitors:
 
-```go
+```lua
 {{range .ExtraMonitors}}
-monitor={{.Name}},disable
+hl.monitor({ output = "{{.Name}}", disabled = true })
 {{end}}
 ```
 
@@ -76,10 +84,10 @@ Array of connected monitors that **are defined** in the profile's required monit
 
 Each monitor object has the same fields as `.Monitors` (see above).
 
-```go
+```lua
 {{range .RequiredMonitors}}
-# Required monitor: {{.Name}} ({{.Description}})
-monitor={{.Name}},{{.CurrentFormat}},auto,1
+-- Required monitor: {{.Name}} ({{.Description}})
+hl.monitor({ output = "{{.Name}}", mode = "preferred", position = "auto", scale = 1 })
 {{end}}
 ```
 
@@ -91,13 +99,13 @@ Each monitor object has the same fields as `.Monitors` (see above).
 
 This is the most convenient way to reference specific monitors in templates:
 
-```go
+```lua
 {{- $laptop := index .MonitorsByTag "laptop" -}}
 {{- $external := index .MonitorsByTag "external" -}}
 
-monitor={{$laptop.Name}},2880x1920@120,0x0,2.0
-monitor={{$external.Name}},preferred,auto,1
-# External monitor description: {{$external.Description}}
+hl.monitor({ output = "{{$laptop.Name}}", mode = "2880x1920@120", position = "0x0", scale = 2 })
+-- Matching by description survives port swaps
+hl.monitor({ output = "desc:{{$external.Description}}", mode = "preferred", position = "auto", scale = 1 })
 ```
 
 ## Template Functions
@@ -106,10 +114,10 @@ monitor={{$external.Name}},preferred,auto,1
 
 Returns true if on battery power.
 
-```go
+```lua
 {{if isOnBattery}}
-# Low power configuration
-monitor=eDP-1,1920x1080@60,0x0,2.0
+-- Low power configuration
+hl.monitor({ output = "eDP-1", mode = "1920x1080@60", position = "0x0", scale = 2 })
 {{end}}
 ```
 
@@ -117,10 +125,10 @@ monitor=eDP-1,1920x1080@60,0x0,2.0
 
 Returns true if on AC power.
 
-```go
+```lua
 {{if isOnAC}}
-# High performance configuration
-monitor=eDP-1,2880x1920@120,0x0,2.0
+-- High performance configuration
+hl.monitor({ output = "eDP-1", mode = "2880x1920@120", position = "0x0", scale = 2 })
 {{end}}
 ```
 
@@ -128,8 +136,8 @@ monitor=eDP-1,2880x1920@120,0x0,2.0
 
 Returns the current power state string (`"AC"` or `"BAT"`).
 
-```go
-# Current power state: {{powerState}}
+```lua
+-- Current power state: {{powerState}}
 ```
 
 ### isLidClosed
@@ -138,9 +146,9 @@ Returns true if the lid is closed.
 
 Requires `--enable-lid-events` flag.
 
-```go
+```lua
 {{if isLidClosed}}
-monitor=eDP-1,disable
+hl.monitor({ output = "eDP-1", disabled = true })
 {{end}}
 ```
 
@@ -150,9 +158,9 @@ Returns true if the lid is opened.
 
 Requires `--enable-lid-events` flag.
 
-```go
+```lua
 {{if isLidOpened}}
-monitor=eDP-1,2880x1920@120,0x0,2.0
+hl.monitor({ output = "eDP-1", mode = "2880x1920@120", position = "0x0", scale = 2 })
 {{end}}
 ```
 
@@ -164,7 +172,7 @@ Define custom values that are available in templates:
 
 ```toml
 [static_template_values]
-default_vrr = "1"
+default_vrr = "true"
 default_res = "2880x1920"
 refresh_rate_high = "120.00000"
 refresh_rate_low = "60.00000"
@@ -174,89 +182,112 @@ refresh_rate_low = "60.00000"
 
 ```toml
 [profiles.laptop_only.static_template_values]
-default_vrr = "0"        # Override global value
+default_vrr = "false"    # Override global value
 battery_scaling = "1.5"  # Profile-specific value
 ```
 
 ### Using in Templates
 
-```go
-monitor=eDP-1,{{.default_res}}@{{.refresh_rate_high}},0x0,1,vrr,{{.default_vrr}}
+```lua
+hl.monitor({
+  output = "eDP-1",
+  mode = "{{.default_res}}@{{.refresh_rate_high}}",
+  position = "0x0",
+  scale = 1,
+  vrr = {{.default_vrr}},
+})
 ```
 
 ## Complete Examples
 
 ### Power-Aware Dual Monitor
 
-```go
+```lua
 {{- $laptop := index .MonitorsByTag "laptop" -}}
 {{- $external := index .MonitorsByTag "external" -}}
 
 {{if isOnAC}}
-# AC Power: High performance
-monitor={{$laptop.Name}},2880x1920@120,0x0,2.0
-monitor={{$external.Name}},3840x2160@60,2880x0,1
+-- AC Power: High performance
+hl.monitor({ output = "{{$laptop.Name}}", mode = "2880x1920@120", position = "0x0", scale = 2 })
+hl.monitor({ output = "{{$external.Name}}", mode = "3840x2160@60", position = "2880x0", scale = 1 })
 {{else}}
-# Battery: Power saving
-monitor={{$laptop.Name}},1920x1080@60,0x0,2.0
-monitor={{$external.Name}},2560x1440@60,1920x0,1
+-- Battery: Power saving
+hl.monitor({ output = "{{$laptop.Name}}", mode = "1920x1080@60", position = "0x0", scale = 2 })
+hl.monitor({ output = "{{$external.Name}}", mode = "2560x1440@60", position = "1920x0", scale = 1 })
 {{end}}
 ```
 
 ### Lid-Aware Docked Setup
 
-```go
+```lua
 {{- $laptop := index .MonitorsByTag "laptop" -}}
 {{- $external := index .MonitorsByTag "external" -}}
 
 {{if isLidClosed}}
-# Lid closed: external monitor only
-monitor={{$laptop.Name}},disable
-monitor={{$external.Name}},preferred,0x0,1
+-- Lid closed: external monitor only
+hl.monitor({ output = "{{$laptop.Name}}", disabled = true })
+hl.monitor({ output = "{{$external.Name}}", mode = "preferred", position = "0x0", scale = 1 })
 {{else}}
-# Lid open: dual monitor
-monitor={{$laptop.Name}},2880x1920@120,0x0,2.0
-monitor={{$external.Name}},preferred,{{$laptop.Width}}x0,1
+-- Lid open: dual monitor
+hl.monitor({ output = "{{$laptop.Name}}", mode = "2880x1920@120", position = "0x0", scale = 2 })
+hl.monitor({ output = "{{$external.Name}}", mode = "preferred", position = "{{$laptop.Width}}x0", scale = 1 })
 {{end}}
 ```
 
 ### Disable Extra Monitors
 
-```go
+```lua
 {{- range .RequiredMonitors}}
-monitor={{.Name}},preferred,auto,1
+hl.monitor({ output = "{{.Name}}", mode = "preferred", position = "auto", scale = 1 })
 {{- end}}
 
 {{- range .ExtraMonitors}}
-# Disable unexpected monitor
-monitor={{.Name}},disable
+-- Disable unexpected monitor
+hl.monitor({ output = "{{.Name}}", disabled = true })
 {{- end}}
 ```
 
 ### Combined Power and Lid State
 
-```go
+```lua
 {{- $laptop := index .MonitorsByTag "laptop" -}}
 
 {{if isLidClosed}}
-monitor={{$laptop.Name}},disable
+hl.monitor({ output = "{{$laptop.Name}}", disabled = true })
 {{else if isOnAC}}
-monitor={{$laptop.Name}},2880x1920@120,0x0,2.0,vrr,1
+hl.monitor({ output = "{{$laptop.Name}}", mode = "2880x1920@120", position = "0x0", scale = 2, vrr = true })
 {{else}}
-monitor={{$laptop.Name}},1920x1080@60,0x0,2.0,vrr,0
+hl.monitor({ output = "{{$laptop.Name}}", mode = "1920x1080@60", position = "0x0", scale = 2, vrr = false })
 {{end}}
+```
+
+### Workspaces and Other Settings
+
+Templates can emit any idempotent Hyprland Lua, for example workspace rules and look-and-feel settings:
+
+```lua
+{{- $external := index .MonitorsByTag "external" -}}
+{{- if $external }}
+hl.workspace_rule({ workspace = "2", monitor = "{{$external.Name}}", default = true })
+-- Workspace rules only affect newly created workspaces; move an existing one explicitly:
+hl.dispatch(hl.dsp.workspace.move({ workspace = "2", monitor = "{{$external.Name}}" }))
+{{- end }}
+
+{{- if isOnBattery }}
+hl.config({ decoration = { blur = { enabled = false } }, animations = { enabled = false } })
+{{- end }}
 ```
 
 ## Whitespace Control
 
 Go templates support whitespace trimming using `-` in template delimiters:
 
-```go
+```lua
 {{- $laptop := index .MonitorsByTag "laptop" -}}
-# This removes trailing whitespace/newlines after the action
+-- This removes trailing whitespace/newlines after the action
 
 {{- $external := index .MonitorsByTag "external" }}
-# This keeps the newline after the action
+-- This keeps the newline after the action
 ```
 
 :::caution Common Issue
@@ -287,7 +318,12 @@ Then check:
 
 - **Destination file** to verify the rendered output:
   ```bash
-  cat ~/.config/hypr/monitors.conf
+  cat ~/.config/hypr/hyprdynamicmonitors.lua
+  ```
+
+- **Lua syntax** of the rendered file (optional, if `luac` is installed):
+  ```bash
+  luac -p ~/.config/hypr/hyprdynamicmonitors.lua
   ```
 
 ### Creating Initial Templates
@@ -298,7 +334,7 @@ Use the `freeze` command to capture your current setup as a starting point:
 hyprdynamicmonitors freeze --profile-name my-setup
 ```
 
-This generates a template from your current monitor configuration that you can then customize.
+This generates a Lua template (by default `hyprconfigs/my-setup.lua.tmpl`) from your current monitor configuration that you can then customize.
 
 ## See Also
 

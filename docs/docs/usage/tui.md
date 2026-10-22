@@ -162,7 +162,7 @@ Select which monitor this monitor should mirror. Mirror loops are prevented auto
 |-----|--------|
 | `e` | Toggle monitor (e)nabled/disabled |
 
-- Disabled monitors show as `disable` in the config preview
+- Disabled monitors show as `disabled = true` in the config preview (the preview pane shows the `hl.monitor({ ... })` Lua that would be generated)
 - Cannot disable the last remaining monitor
 - Cannot edit settings of disabled monitors
 
@@ -193,7 +193,7 @@ Select which monitor this monitor should mirror. Mirror loops are prevented auto
 
 | Key | Action |
 |-----|--------|
-| `A` | Apply current monitor configuration to Hyprland (ephemeral, not persisted on disk) |
+| `A` | Apply current monitor configuration to Hyprland (ephemeral, not persisted on disk). The TUI sends the `hl.monitor({ ... })` calls to Hyprland through its socket (the equivalent of `hyprctl eval '...'`), since `hyprctl keyword` is rejected by Lua configs |
 | `Y` | Confirm and apply |
 | `N` or `Esc` | Cancel |
 
@@ -265,7 +265,7 @@ The TUI can generate and edit the Hyprland monitor configuration on-demand:
 | `R` | Render configuration from template/static file to the destination |
 | `E` | Edit the rendered configuration file in your `$EDITOR` |
 
-The `R` command writes the rendered output to your configured `config.general.destination`. You can then manually edit this file with `E`.
+The `R` command writes the rendered Lua output to your configured `config.general.destination` (default: `~/.config/hypr/hyprdynamicmonitors.lua`). When `[general] live_apply = true` (the default) and the file changed, the TUI then runs it inside Hyprland (equivalent of `hyprctl eval 'dofile("<destination>")'`). You can then manually edit this file with `E`.
 
 :::caution Ephemeral Changes
 If the `hyprdynamicmonitors` daemon is running, any manual edits to the rendered configuration will be overwritten when the daemon responds to monitor or power state events.

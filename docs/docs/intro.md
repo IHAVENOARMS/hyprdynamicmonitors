@@ -50,10 +50,14 @@ For configuration changes, the service provides automatic hot reloading by watch
 ### Hyprland-Native Integration
 
 The service leverages Hyprland's native abstractions rather than working directly with Wayland protocols. It detects the desired configuration based on current monitor state and power supply, then either:
-- Generates a templated Hyprland config file at the specified destination
-- Or creates a symlink to a user-provided static configuration file
+- Generates a templated Hyprland Lua file at the specified destination
+- Or creates a symlink to a user-provided static Lua file
 
-Hyprland automatically detects and applies these configuration changes (granted it's not explicitly turned off, if so you have to use [the callbacks](./configuration/callbacks) to `hyprctl reload`), ensuring seamless integration with the compositor's built-in configuration system.
+The destination (default `~/.config/hypr/hyprdynamicmonitors.lua`) is loaded from your `~/.config/hypr/hyprland.lua` with `require("hyprdynamicmonitors")`. By default (`live_apply = true`) the daemon then runs the file inside Hyprland (equivalent to `hyprctl eval 'dofile("<destination>")'`), so changes apply immediately without depending on Hyprland's file watcher. With `live_apply = false`, Hyprland's own reload picks up the change (if autoreload is disabled, use [the callbacks](./configuration/callbacks) to `hyprctl reload`).
+
+:::info Hyprland Lua only
+This fork targets Hyprland's Lua configuration (`hyprland.lua`). The old hyprlang syntax (`monitor=...` lines, `source = ...`, `hyprctl keyword`) is not generated or supported anymore; templates must emit `hl.monitor({ ... })` calls.
+:::
 
 ## Quick Start
 
@@ -72,7 +76,7 @@ Most similar tools are more generic, working with any Wayland compositor. In con
 
 **Advantages of HyprDynamicMonitors:**
 - **Interactive TUI**: Built-in terminal interface for visual monitor configuration and profile management
-- **Full configuration control**: Instead of introducing another configuration format, you work directly with Hyprland's native config syntax
+- **Full configuration control**: Instead of introducing another configuration format, you work directly with Hyprland's native Lua config
 - **Template system**: Dynamic configuration generation based on connected monitors and power state
 - **Power state awareness**: Built-in AC/battery detection for laptop users
 - **Event-driven automation**: Automatically responds to monitor connect/disconnect events

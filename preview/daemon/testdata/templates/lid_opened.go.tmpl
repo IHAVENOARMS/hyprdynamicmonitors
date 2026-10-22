@@ -1,6 +1,6 @@
 {{- $laptop := index .MonitorsByTag "laptop" -}}
 {{- $external := index .MonitorsByTag "external" -}}
-# Generated with lid state: {{.LidState}}
+-- Generated with lid state: {{.LidState}}
 
-monitor={{ $laptop.Name }},2880x1920@120.00000,0x0,2.0,vrr,1
-monitor={{ $external.Name }},2560x2880@59.96700,auto-left,1.6,transform,3
+hl.monitor({ output = "{{ $laptop.Name }}", mode = "2880x1920@120", position = "0x0", scale = 2, vrr = true })
+hl.monitor({ output = "{{ $external.Name }}", mode = "2560x2880@59.967", position = "auto-left", scale = 1.6, transform = 3 })

@@ -16,6 +16,12 @@
 
 An event-driven service with an interactive TUI that automatically manages Hyprland monitor configurations based on connected displays, power and lid state.
 
+> [!IMPORTANT]
+> **Hyprland Lua only.** This fork targets Hyprland's Lua configuration (`~/.config/hypr/hyprland.lua`).
+> It renders `hl.monitor({ ... })` calls instead of hyprlang `monitor=` lines, and it no longer uses
+> `hyprctl keyword` (rejected by Hyprland under a Lua config). If you still use `hyprland.conf`, use upstream
+> [fiffeek/hyprdynamicmonitors](https://github.com/fiffeek/hyprdynamicmonitors). See [Hyprland Lua](#hyprland-lua) for how to migrate.
+
 
 ## Preview
 
@@ -62,6 +68,9 @@ A full guide is available at [Dynamic Profile Modes](https://fiffeek.github.io/h
    * [Quick Start](#quick-start)
       * [Installation](#installation)
       * [Setup](#setup)
+   * [Hyprland Lua](#hyprland-lua)
+      * [Migrating an existing template](#migrating-an-existing-template)
+      * [Live apply](#live-apply)
    * [Documentation](#documentation)
    * [Examples](#examples)
    * [Runtime Requirements](#runtime-requirements)
@@ -114,21 +123,27 @@ hyprdynamicmonitors tui
 # For getting started see: https://hyprdynamicmonitors.filipmikina.com/docs/quickstart/tui/
 ```
 
-Then add to your `~/.config/hypr/hyprland.conf` (alternatively, see [Running with systemd](https://fiffeek.github.io/hyprdynamicmonitors/docs/advanced/systemd) guide):
+Then add to your `~/.config/hypr/hyprland.lua` (alternatively, see [Running with systemd](https://fiffeek.github.io/hyprdynamicmonitors/docs/advanced/systemd) guide):
 
-```bash
-# Source the generated monitor configuration
-source = ~/.config/hypr/monitors.conf
+```lua
+-- Load the generated monitor configuration (~/.config/hypr/hyprdynamicmonitors.lua).
+-- Put this AFTER any other hl.monitor(...) calls so the generated rules win.
+require("hyprdynamicmonitors")
 
-# Run the daemon for automatic profile switching
-exec-once = hyprdynamicmonitors run
+-- Run the daemon for automatic profile switching
+hl.on("hyprland.start", function()
+	hl.exec_cmd("hyprdynamicmonitors run")
+end)
 
-# or use systemd instead
-# see: https://fiffeek.github.io/hyprdynamicmonitors/docs/advanced/systemd
-# systemctl --user enable --now hyprdynamicmonitors.service
+-- or use systemd instead
+-- see: https://fiffeek.github.io/hyprdynamicmonitors/docs/advanced/systemd
+-- systemctl --user enable --now hyprdynamicmonitors.service
 ```
 
-Ensure you're running `hyprdynamicmonitors prepare` prior to running Hyprland (see [the guide and the why](https://fiffeek.github.io/hyprdynamicmonitors/docs/advanced/prepare)):
+The generated file is written to `$HOME/.config/hypr/hyprdynamicmonitors.lua` by default (`[general] destination`).
+Avoid naming it `monitors.lua`: `require("monitors")` would be shadowed by (or shadow) a `monitors/init.lua` module.
+
+Ensure you're running `hyprdynamicmonitors prepare` prior to running Hyprland (it rewrites `disabled = true` to `disabled = false` in the destination so Hyprland never starts without an active display; see [the guide and the why](https://fiffeek.github.io/hyprdynamicmonitors/docs/advanced/prepare)):
 ```bash
 # e.g. from a tty:
 hyprdynamicmonitors prepare && Hyprland
@@ -140,6 +155,70 @@ For detailed setup instructions, see the [Quick Start Guide](https://fiffeek.git
 
 > [!CAUTION]
 > For production environments prefer running with `systemd` ([guide](https://fiffeek.github.io/hyprdynamicmonitors/docs/advanced/systemd)).
+
+## Hyprland Lua
+
+Profiles still point at either a static file (`config_file_type = "static"`, symlinked to the destination) or a
+Go [`text/template`](https://pkg.go.dev/text/template) (`config_file_type = "template"`). The template data and
+functions are unchanged (`.MonitorsByTag`, `.RequiredMonitors`, `.ExtraMonitors`, `.Monitors`, `isOnAC`,
+`isOnBattery`, `isLidClosed`, ...), but the **output must be Lua**. By convention templates are named `*.lua.tmpl`
+(`hyprdynamicmonitors freeze` creates `hyprconfigs/<profile>.lua.tmpl`) and static files `*.lua`.
+
+### Migrating an existing template
+
+| hyprlang (old) | Lua (new) |
+|---|---|
+| `monitor=desc:{{$ext.Description}},2560x1440@60,0x0,1` | `hl.monitor({ output = "desc:{{$ext.Description}}", mode = "2560x1440@60", position = "0x0", scale = 1 })` |
+| `monitor={{$laptop.Name}},2880x1920@120,0x0,2,vrr,1,transform,0` | `hl.monitor({ output = "{{$laptop.Name}}", mode = "2880x1920@120", position = "0x0", scale = 2, vrr = true, transform = 0 })` |
+| `monitor={{.Name}},disable` | `hl.monitor({ output = "{{.Name}}", disabled = true })` |
+| `monitor=,preferred,auto,1` | `hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })` |
+| `workspace = 2,monitor:{{$ext.Name}},default:true` | `hl.workspace_rule({ workspace = "2", monitor = "{{$ext.Name}}", default = true })` |
+| `exec = hyprctl dispatch moveworkspacetomonitor 1 eDP-1` | `hl.dispatch(hl.dsp.workspace.move({ workspace = "1", monitor = "eDP-1" }))` |
+| `decoration { blur { enabled = false } }` | `hl.config({ decoration = { blur = { enabled = false } } })` |
+| `# comment` / `# <<<<< TUI AUTO START` | `-- comment` / `-- <<<<< TUI AUTO START` |
+
+A complete template:
+
+```lua
+{{- $laptop := index .MonitorsByTag "laptop" -}}
+{{- $external := index .MonitorsByTag "external" -}}
+-- Generated for power state: {{.PowerState}}
+hl.monitor({
+	output = "{{$laptop.Name}}",
+	mode = "2880x1920@{{if isOnBattery}}60{{else}}120{{end}}",
+	position = "0x0",
+	scale = 2,
+})
+{{- if $external }}
+hl.monitor({ output = "desc:{{$external.Description}}", mode = "2560x1440@60", position = "auto-right", scale = 1 })
+hl.workspace_rule({ workspace = "2", monitor = "desc:{{$external.Description}}" })
+{{- end }}
+```
+
+Notes:
+- Descriptions no longer need the hyprlang `##` escaping of `#`; they sit inside a Lua string. A description containing
+  a double quote `"` (or a backslash) would need escaping (`\"`) inside the string.
+- Supported `hl.monitor` fields: `output`, `mode`, `position`, `scale`, `transform`, `vrr`, `bitdepth`, `cm`,
+  `sdrbrightness`, `sdrsaturation`, `mirror`, `disabled`, ... (see `HL.MonitorSpec` in Hyprland's
+  `/usr/share/hypr/stubs/hl.meta.lua`).
+- The TUI only rewrites the region between `-- <<<<< TUI AUTO START` and `-- <<<<< TUI AUTO END`; keep it at the end
+  of the file so its monitor rules win.
+- You can syntax-check a static file with `luac -p file.lua`.
+
+### Live apply
+
+```toml
+[general]
+destination = "$HOME/.config/hypr/hyprdynamicmonitors.lua"
+live_apply = true # default
+```
+
+With `live_apply = true` the daemon (and the TUI) runs the destination inside Hyprland right after writing it, the socket
+equivalent of `hyprctl eval 'dofile("<destination>")'`, so the change takes effect immediately. Because the file is
+re-run on every apply, it should only contain idempotent calls: `hl.monitor`, `hl.workspace_rule`, `hl.config`,
+`hl.window_rule` *with a `name`* (named rules are updated, unnamed ones are added again). Keep `hl.bind`,
+`hl.on(...)` and autostart `hl.exec_cmd(...)` in `hyprland.lua` - in the destination they would be registered or run again
+on every apply. Set `live_apply = false` to rely on Hyprland reloading its config instead.
 
 ## Documentation
 
@@ -164,20 +243,20 @@ Key topics:
 
 ## Examples
 
-See the [`examples/`](https://github.com/fiffeek/hyprdynamicmonitors/tree/main/examples) directory for complete configuration examples:
+See the [`examples/`](examples) directory for complete configuration examples:
 
 | Example | Description |
 |---------|-------------|
-| [Basic Setup](https://github.com/fiffeek/hyprdynamicmonitors/tree/main/examples/basic) | Simple laptop configuration |
-| [Full Configuration](https://github.com/fiffeek/hyprdynamicmonitors/tree/main/examples/full) | All available options |
-| [Power States](https://github.com/fiffeek/hyprdynamicmonitors/tree/main/examples/power-states) | AC/battery-aware profiles |
-| [Lid States](https://github.com/fiffeek/hyprdynamicmonitors/tree/main/examples/lid-states) | Laptop lid detection |
-| [Template Variables](https://github.com/fiffeek/hyprdynamicmonitors/tree/main/examples/template-variables) | Dynamic templates |
-| [Disable Monitors](https://github.com/fiffeek/hyprdynamicmonitors/tree/main/examples/disable-monitors) | Managing unexpected displays |
+| [Basic Setup](examples/basic) | Simple laptop configuration |
+| [Full Configuration](examples/full) | All available options |
+| [Power States](examples/power-states) | AC/battery-aware profiles |
+| [Lid States](examples/lid-states) | Laptop lid detection |
+| [Template Variables](examples/template-variables) | Dynamic templates |
+| [Disable Monitors](examples/disable-monitors) | Managing unexpected displays |
 
 ## Runtime Requirements
 
-- Hyprland with IPC support
+- Hyprland with a Lua config (`hyprland.lua`) and IPC support
 - UPower (required on laptops, unless `--disable-power-events` is passed, for power state monitoring)
 - D-Bus access (required if power events, lid state or notifications are enabled)
 

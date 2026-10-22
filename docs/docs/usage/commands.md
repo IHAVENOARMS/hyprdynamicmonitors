@@ -154,7 +154,7 @@ This command captures your current monitor setup and creates two artifacts:
 2. A new profile entry in your configuration file that references this template
 
 TEMPLATE FILE:
-The Go template will be saved to hyprconfigs/{profile-name}.go.tmpl by default, or to a
+The Go template will be saved to hyprconfigs/{profile-name}.lua.tmpl by default, or to a
 custom location specified with --config-file-location. This template can be edited after
 creation to customize the configuration.
 
@@ -174,7 +174,7 @@ Usage:
   hyprdynamicmonitors freeze [flags]
 
 Flags:
-      --config-file-location string   Where to put the generated config file template (defaults to hyprconfigs/$PROFILE_NAME.go.tmpl)
+      --config-file-location string   Where to put the generated config file template (defaults to hyprconfigs/$PROFILE_NAME.lua.tmpl)
   -h, --help                          help for freeze
       --profile-name string           What profile name to set the frozen profile to.
 
@@ -200,7 +200,7 @@ hyprdynamicmonitors freeze --profile-name dual-monitors
 
 # Freeze with custom template location
 hyprdynamicmonitors freeze --profile-name triple-4k \
-  --config-file-location ~/my-configs/triple.go.tmpl
+  --config-file-location ~/my-configs/triple.lua.tmpl
 ```
 
 ## tui
@@ -262,7 +262,7 @@ hyprdynamicmonitors tui --hypr-monitors-override /path/to/monitors-spec.txt --co
 
 Clean up monitor configuration before starting Hyprland to prevent the "no active displays" issue.
 
-This command removes any `monitor=...,disable` lines from your destination configuration file. This is essential if you disable monitors in your profiles (like disabling the laptop screen when using external displays), because Hyprland cannot start if all monitors are disabled at launch.
+This command rewrites every `disabled = true` in your destination Lua file (for example `hl.monitor({ output = "eDP-1", disabled = true })`) to `disabled = false`, skipping Lua comment lines. This is essential if you disable monitors in your profiles (like disabling the laptop screen when using external displays), because Hyprland cannot start if all monitors are disabled at launch.
 
 :::tip
 For detailed explanation and setup instructions, see [What is hyprdynamicmonitors prepare?](../advanced/prepare).
@@ -271,11 +271,11 @@ For detailed explanation and setup instructions, see [What is hyprdynamicmonitor
 ### Flags
 <!-- START preparehelp -->
 ```text
-Prepares the monitor configuration file by removing monitor disable commands.
+Prepares the monitor configuration file by re-enabling disabled monitors.
 
 This command should be run before starting Hyprland to ensure
-a clean state. It removes any 'monitor=...,disable' lines from the destination file,
-which prevents an issue with no active displays (Hyprland does not launch).
+a clean state. It rewrites every 'disabled = true' in the destination Lua file
+to 'disabled = false', which prevents an issue with no active displays (Hyprland does not launch).
 
 This is particularly useful when running with systemd, where you want to ensure the
 monitor configuration is reset before the daemon starts managing profiles.

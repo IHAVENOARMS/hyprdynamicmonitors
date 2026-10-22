@@ -22,7 +22,7 @@ Before diving into the workflows, it's helpful to understand these key concepts:
 
 - **Applying monitors to profile** - Saving the current monitor layout settings to an existing or new profile in your HDM config file.
 
-- **Rendering** - Generating the Hyprland monitor configuration from HDM profiles and writing it to the destination file (typically `~/.config/hypr/monitors.conf`). When running without a daemon, you need to manually trigger this with the `R` keybind.
+- **Rendering** - Generating the Hyprland monitor configuration from HDM profiles and writing it to the destination file (typically `~/.config/hypr/hyprdynamicmonitors.lua`). When running without a daemon, you need to manually trigger this with the `R` keybind.
 
 - **Ephemeral apply** - Applying monitor settings directly to Hyprland without saving to a profile or rendering to the destination file. Useful for testing layouts on-the-fly.
 
@@ -43,12 +43,12 @@ When you set up a new monitor configuration:
 4. Switch to **Profile** view with `Tab`
 5. If you see "No Matching Profile", press `n` to create a new profile
 6. Type the profile name and press `Enter`
-7. The profile is saved to your HDM config and a template file is created under `~/.config/hyprdynamicmonitors/hyprconfigs/${profile_name}.go.tmpl`
+7. The profile is saved to your HDM config and a template file is created under `~/.config/hyprdynamicmonitors/hyprconfigs/${profile_name}.lua.tmpl`
 8. **Without daemon**: Press `R` to manually render the configuration to your destination file
-9. The rendered configuration is written to `config.general.destination` (typically `~/.config/hypr/monitors.conf`)
+9. The rendered configuration is written to `config.general.destination` (typically `~/.config/hypr/hyprdynamicmonitors.lua`) and, with `[general] live_apply = true` (the default), run inside Hyprland right away
 
 :::tip
-Make sure your Hyprland config sources the destination file: `source = ~/.config/hypr/monitors.conf` in `~/.config/hypr/hyprland.conf`
+Make sure your Hyprland config loads the destination file: `require("hyprdynamicmonitors")` in `~/.config/hypr/hyprland.lua` (after any other monitor config, so it wins)
 :::
 
 ### Adjusting an existing profile
@@ -66,8 +66,8 @@ When modifying an existing monitor setup:
 7. Confirm with `Y`
 
 The TUI will:
-- Replace the content between the `>>>>>` TUI markers if they exist (from previous TUI edits or `hyprdynamicmonitors freeze`)
-- Or append a new `>>>>>` markers block at the end of the profile file if markers aren't found
+- Replace the content between the `-- <<<<< TUI AUTO START` / `-- <<<<< TUI AUTO END` markers if they exist (from previous TUI edits or `hyprdynamicmonitors freeze`)
+- Or append a new markers block at the end of the profile file if markers aren't found
 
 8. **Without daemon**: Press `R` to manually render the updated configuration to the destination file
 
@@ -82,8 +82,9 @@ When running without the daemon, rendering must be triggered manually:
 The rendering process:
 1. Reads your HDM config and profiles
 2. Matches current monitors to the appropriate profile
-3. Generates Hyprland monitor configuration syntax
+3. Generates Hyprland Lua (`hl.monitor({ ... })` calls)
 4. Writes to `config.general.destination` file
+5. If `[general] live_apply = true` (the default) and the file changed, runs it inside Hyprland (equivalent of `hyprctl eval 'dofile("<destination>")'`)
 
 :::info
 With the daemon running, rendering happens automatically when monitors or configuration changes. Without it, you control when configuration is written to disk.

@@ -23,13 +23,15 @@ The configuration file is written in TOML and consists of several main sections:
 
 ```toml title="~/.config/hyprdynamicmonitors/config.toml"
 [general]
-destination = "$HOME/.config/hypr/monitors.conf"
+destination = "$HOME/.config/hypr/hyprdynamicmonitors.lua"
 debounce_time_ms = 1500
+live_apply = true
 pre_apply_exec = "notify-send 'Switching profile...'"
 post_apply_exec = "notify-send 'Profile applied'"
 ```
 
-- `destination` - Where the monitor configuration file will be created or linked
+- `destination` - Where the rendered Hyprland Lua file will be created or linked (default: `$HOME/.config/hypr/hyprdynamicmonitors.lua`). Load it from `~/.config/hypr/hyprland.lua` with `require("hyprdynamicmonitors")`, placed **after** any other monitor configuration so its `hl.monitor()` calls win
+- `live_apply` - After writing the destination, run it inside Hyprland (the socket equivalent of `hyprctl eval 'dofile("<destination>")'`) so the change applies immediately (default: `true`). Because the file is re-executed on every apply, it should only contain idempotent calls such as `hl.monitor()`, `hl.workspace_rule()`, named `hl.window_rule()` and `hl.config()`; things like `hl.bind()` or `hl.exec_cmd()` would be registered/run again each time. Set `live_apply = false` to rely on Hyprland reloading the config instead
 - `debounce_time_ms` - Collect events for this duration before applying changes (prevents configuration thrashing, default: 1500ms)
 - `pre_apply_exec` - Command to run before applying configuration (optional)
 - `post_apply_exec` - Command to run after applying configuration (optional)
@@ -62,7 +64,7 @@ Lid events monitor your system's lid state (Opened/Closed) via D-Bus. See [Lid E
 
 ```toml title="~/.config/hyprdynamicmonitors/config.toml"
 [profiles.laptop_only]
-config_file = "hyprconfigs/laptop.conf"
+config_file = "hyprconfigs/laptop.lua"
 config_file_type = "static"
 
 [[profiles.laptop_only.conditions.required_monitors]]
@@ -117,7 +119,7 @@ See [Monitor Matching](./monitor-matching) for details on how profiles are selec
 
 ```toml title="~/.config/hyprdynamicmonitors/config.toml"
 [static_template_values]
-default_vrr = "1"
+default_vrr = "true"
 default_res = "2880x1920"
 ```
 
@@ -127,7 +129,7 @@ Define global values that can be used in all templates. These can be overridden 
 
 ```toml title="~/.config/hyprdynamicmonitors/config.toml"
 [fallback_profile]
-config_file = "hyprconfigs/fallback.conf"
+config_file = "hyprconfigs/fallback.lua"
 config_file_type = "static"
 ```
 

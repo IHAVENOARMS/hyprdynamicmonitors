@@ -1,0 +1,2 @@
+-- Fallback profile: used when no other profile matches.
+-- Intentionally empty - Hyprland keeps its own default monitor rules.

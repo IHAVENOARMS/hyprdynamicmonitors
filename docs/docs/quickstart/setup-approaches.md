@@ -14,7 +14,12 @@ In essence, what `hyprdynamicmonitors` does is:
 - See what the user defined in `config.toml`
   - Iterate through user-defined profiles and find the best matching one
   - For that profile, see what template or static configuration it requires
-  - Render that configuration to the `config.general.destination` location
+  - Render that configuration (Hyprland Lua, e.g. `hl.monitor({ ... })` calls) to the `config.general.destination` location (default: `~/.config/hypr/hyprdynamicmonitors.lua`)
+  - With `[general] live_apply = true` (the default), run the destination inside Hyprland (equivalent of `hyprctl eval 'dofile("<destination>")'`), so the change applies immediately
+
+:::note Hyprland Lua only
+This fork targets Hyprland's Lua config (`hyprland.lua`). The destination is a Lua file that you load with `require("hyprdynamicmonitors")`. Because the daemon re-runs it on every apply, keep it idempotent: `hl.monitor(...)`, `hl.workspace_rule(...)` and named `hl.window_rule(...)` calls are fine, but keep things like `hl.bind(...)` in your `hyprland.lua`. Set `live_apply = false` under `[general]` to rely on Hyprland reloading instead.
+:::
 
 This is a simplified view, but it gives you a good understanding of the system. In reality, it responds to events, aggregates state on startup, sends notifications, and may execute callbacks. See [Configuration](../configuration/overview.md) for more details.
 
@@ -51,16 +56,20 @@ The TUI (Terminal User Interface) provides a visual way to configure monitors an
    - Enter a profile name (e.g., "laptop-only")
    - The profile is automatically saved to your configuration
 
-4. **Source the configuration** in your `~/.config/hypr/hyprland.conf`:
-   ```conf
-   source = ~/.config/hypr/monitors.conf
+4. **Load the generated configuration** from your `~/.config/hypr/hyprland.lua` (after any other monitor config, so it wins):
+   ```lua
+   require("hyprdynamicmonitors") -- loads ~/.config/hypr/hyprdynamicmonitors.lua
    ```
 
 5. **Run the daemon** for automatic profile switching:
-   ```conf
-   # Add to ~/.config/hypr/hyprland.conf
-   exec-once = hyprdynamicmonitors run
-   # Or use systemd
+   ```lua
+   -- Add to ~/.config/hypr/hyprland.lua
+   hl.on("hyprland.start", function()
+     hl.exec_cmd("hyprdynamicmonitors run")
+   end)
+   ```
+   Or use systemd:
+   ```bash
    systemctl --user daemon-reload
    systemctl --user enable --now hyprdynamicmonitors.service
    ```
@@ -68,7 +77,7 @@ The TUI (Terminal User Interface) provides a visual way to configure monitors an
 6. **Set up the prepare command** to prevent startup issues:
 
    :::tip
-   The `prepare` command removes disabled monitor entries from your configuration before Hyprland starts, preventing the "no active displays" issue. See [What is hyprdynamicmonitors prepare?](../advanced/prepare) for details.
+   The `prepare` command re-enables disabled monitors (`disabled = true` becomes `disabled = false`) in your destination file before Hyprland starts, preventing the "no active displays" issue. See [What is hyprdynamicmonitors prepare?](../advanced/prepare) for details.
    :::
 
    **If using systemd** (recommended):
@@ -85,7 +94,7 @@ The TUI (Terminal User Interface) provides a visual way to configure monitors an
    See the [prepare documentation](../advanced/prepare) for more setup options.
 
 :::info
-  Systemd services are recommended in favor of `exec-once`: see [Running with systemd](../advanced/systemd).
+  Systemd services are recommended in favor of starting the daemon from `hyprland.lua`: see [Running with systemd](../advanced/systemd).
 :::
 
 :::note
@@ -102,7 +111,7 @@ The TUI (Terminal User Interface) provides a visual way to configure monitors an
 
    ```toml
    [general]
-   destination = "$HOME/.config/hypr/monitors.conf"
+   destination = "$HOME/.config/hypr/hyprdynamicmonitors.lua"
 
    [power_events]
    [power_events.dbus_query_object]
@@ -112,37 +121,45 @@ The TUI (Terminal User Interface) provides a visual way to configure monitors an
    object_path = "/org/freedesktop/UPower/devices/line_power_ACAD"
 
    [profiles.laptop_only]
-   config_file = "hyprconfigs/laptop.conf"
+   config_file = "hyprconfigs/laptop.lua"
    config_file_type = "static"
 
    [[profiles.laptop_only.conditions.required_monitors]]
    name = "eDP-1"  # Replace with your display name from hyprctl monitors
    ```
 
-2. **Create the monitor configuration** at `~/.config/hyprdynamicmonitors/hyprconfigs/laptop.conf`:
+2. **Create the monitor configuration** at `~/.config/hyprdynamicmonitors/hyprconfigs/laptop.lua`:
 
-   ```
-   monitor=eDP-1,2880x1920@120.00000,0x0,2.0,vrr,1
+   ```lua
+   hl.monitor({
+     output = "eDP-1",
+     mode = "2880x1920@120",
+     position = "0x0",
+     scale = 2,
+     vrr = true,
+   })
    ```
 
    Replace with your actual monitor settings (check `hyprctl monitors`).
 
-3. **Source the configuration** in your `~/.config/hypr/hyprland.conf`:
+3. **Load the generated configuration** from your `~/.config/hypr/hyprland.lua` (after any other monitor config, so it wins):
 
-   ```conf
-   source = ~/.config/hypr/monitors.conf
+   ```lua
+   require("hyprdynamicmonitors") -- loads ~/.config/hypr/hyprdynamicmonitors.lua
    ```
 
 4. **Run the daemon**:
-   ```conf
-   # Add to ~/.config/hypr/hyprland.conf
-   exec-once = hyprdynamicmonitors run
+   ```lua
+   -- Add to ~/.config/hypr/hyprland.lua
+   hl.on("hyprland.start", function()
+     hl.exec_cmd("hyprdynamicmonitors run")
+   end)
    ```
 
 5. **Set up the prepare command** to prevent startup issues:
 
    :::tip
-   The `prepare` command removes disabled monitor entries from your configuration before Hyprland starts, preventing the "no active displays" issue. See [What is hyprdynamicmonitors prepare?](../advanced/prepare) for details.
+   The `prepare` command re-enables disabled monitors (`disabled = true` becomes `disabled = false`) in your destination file before Hyprland starts, preventing the "no active displays" issue. See [What is hyprdynamicmonitors prepare?](../advanced/prepare) for details.
    :::
 
    **If using systemd** (recommended):
@@ -159,7 +176,7 @@ The TUI (Terminal User Interface) provides a visual way to configure monitors an
    See the [prepare documentation](../advanced/prepare) for more setup options.
 
 :::info
-  Or use systemd (recommended for production), instead of `exec-once`: see [Running with systemd](../advanced/systemd).
+  Or use systemd (recommended for production), instead of starting it from `hyprland.lua`: see [Running with systemd](../advanced/systemd).
 :::
 
 ---
@@ -180,15 +197,15 @@ The TUI (Terminal User Interface) provides a visual way to configure monitors an
    - Press `n` to create a new profile or `a` to update an existing one
    - Press `R` to manually render the configuration to the destination file
 
-3. **Source the configuration** in your `~/.config/hypr/hyprland.conf`:
-   ```conf
-   source = ~/.config/hypr/monitors.conf
+3. **Load the generated configuration** from your `~/.config/hypr/hyprland.lua` (after any other monitor config, so it wins):
+   ```lua
+   require("hyprdynamicmonitors") -- loads ~/.config/hypr/hyprdynamicmonitors.lua
    ```
 
 4. **Set up the prepare command** to prevent startup issues:
 
    :::tip
-   The `prepare` command removes disabled monitor entries from your configuration before Hyprland starts, preventing the "no active displays" issue. See [What is hyprdynamicmonitors prepare?](../advanced/prepare) for details.
+   The `prepare` command re-enables disabled monitors (`disabled = true` becomes `disabled = false`) in your destination file before Hyprland starts, preventing the "no active displays" issue. See [What is hyprdynamicmonitors prepare?](../advanced/prepare) for details.
    :::
 
    **If using systemd**:

@@ -1,16 +1,12 @@
 {{- $laptop := index .MonitorsByTag "laptop" -}}
-# Generated with power state: {{.PowerState}}
+-- Generated with power state: {{.PowerState}}
 
 {{ if isOnBattery }}
-# disable animations, reduce refresh rate, enable vrr
-monitor={{ $laptop.Name }},2880x1920@60.00000,0x0,2.0,vrr,1
-animations {
-  enabled = false
-}
+-- disable animations, reduce refresh rate, enable vrr
+hl.monitor({ output = "{{ $laptop.Name }}", mode = "2880x1920@60", position = "0x0", scale = 2, vrr = true })
+hl.config({ animations = { enabled = false } })
 {{- else}}
-# enable animations, max refresh rate, disable vrr
-monitor={{ $laptop.Name }},2880x1920@120.00000,0x0,2.0,vrr,0
-animations {
-  enabled = true
-}
+-- enable animations, max refresh rate, disable vrr
+hl.monitor({ output = "{{ $laptop.Name }}", mode = "2880x1920@120", position = "0x0", scale = 2, vrr = false })
+hl.config({ animations = { enabled = true } })
 {{- end}}

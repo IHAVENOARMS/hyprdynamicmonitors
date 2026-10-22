@@ -6,55 +6,58 @@ sidebar_position: 7
 
 ## How do I assign workspaces to specific monitors?
 
-You can include workspace assignments directly in your profile configuration files. HyprDynamicMonitors generates or links Hyprland configuration files, so any valid Hyprland configuration syntax works.
+You can include workspace rules directly in your profile configuration files. HyprDynamicMonitors generates or links Hyprland Lua files, so any valid (idempotent) Hyprland Lua works. `hl.workspace_rule()` replaces an existing rule for the same workspace, so it is safe to re-run on every apply.
 
 ### Example with static configuration
 
-In your profile configuration file (e.g., `hyprconfigs/triple-monitor.conf`):
+In your profile configuration file (e.g., `hyprconfigs/triple-monitor.lua`):
 
-```
-# Monitor configuration
-monitor=desc:BOE 0x0C6B,preferred,0x0,1
-monitor=desc:LG Electronics LG ULTRAWIDE 408NTVSDT319,preferred,1920x0,1
-monitor=desc:Dell Inc. DELL P2222H B2RY1H3,preferred,3840x0,1
+```lua
+-- Monitor configuration
+hl.monitor({ output = "desc:BOE 0x0C6B", mode = "preferred", position = "0x0", scale = 1 })
+hl.monitor({ output = "desc:LG Electronics LG ULTRAWIDE 408NTVSDT319", mode = "preferred", position = "1920x0", scale = 1 })
+hl.monitor({ output = "desc:Dell Inc. DELL P2222H B2RY1H3", mode = "preferred", position = "3840x0", scale = 1 })
 
-# Workspace assignments
-# The format is: `monitor:${connectorName}`
-# You can use templates so that you do not have to hardcode these too
-workspace=1,monitor:eDP-1,default:true
-workspace=2,monitor:DP-11,default:true
-workspace=3,monitor:DP-12,default:true
+-- Workspace assignments (monitor is a connector name or "desc:...")
+-- You can use templates so that you do not have to hardcode these too
+hl.workspace_rule({ workspace = "1", monitor = "eDP-1", default = true })
+hl.workspace_rule({ workspace = "2", monitor = "DP-11", default = true })
+hl.workspace_rule({ workspace = "3", monitor = "DP-12", default = true })
 ```
 
 ### Example with templates
 
-In `hyprconfigs/dual-monitor.go.tmpl`:
+In `hyprconfigs/dual-monitor.lua.tmpl`:
 
-```go
+```lua
 {{- $laptop := index .MonitorsByTag "laptop" -}}
 {{- $external := index .MonitorsByTag "external" -}}
-monitor={{$laptop.Name}},preferred,0x0,1
-monitor={{$external.Name}},preferred,1920x0,1
+hl.monitor({ output = "{{$laptop.Name}}", mode = "preferred", position = "0x0", scale = 1 })
+hl.monitor({ output = "{{$external.Name}}", mode = "preferred", position = "1920x0", scale = 1 })
 
-workspace=1,monitor:{{$laptop.Name}},default:true
-workspace=2,monitor:{{$external.Name}},default:true
-workspace=3,monitor:{{$external.Name}}
+hl.workspace_rule({ workspace = "1", monitor = "{{$laptop.Name}}", default = true })
+hl.workspace_rule({ workspace = "2", monitor = "{{$external.Name}}", default = true })
+hl.workspace_rule({ workspace = "3", monitor = "{{$external.Name}}" })
 ```
 
 You can also use the [TUI](./quickstart/tui) to create and edit profiles interactively.
 
 :::info
-Hyprland might still force the workspace to appear on a monitor that technically does not exist anymore (see [this discussion](https://github.com/hyprwm/Hyprland/discussions/11180#discussioncomment-14857978)), you can hack this with moving the workspace on Hyprland reload:
-```
-exec = hyprctl dispatch moveworkspacetomonitor 2 {{$external.Name}}
+Hyprland might still force the workspace to appear on a monitor that technically does not exist anymore (see [this discussion](https://github.com/hyprwm/Hyprland/discussions/11180#discussioncomment-14857978)), you can work around this by moving the workspace explicitly from the template (this runs every time the file is applied, which is what you want here):
+```lua
+hl.dispatch(hl.dsp.workspace.move({ workspace = "2", monitor = "{{$external.Name}}" }))
 ```
 
-Alternatively, you could also write a [callback](./configuration/callbacks.md) (this is a simplified version, writing a script will be more robust):
+Alternatively, you could also write a [callback](./configuration/callbacks.md) (this is a simplified version, writing a script will be more robust). With a Lua config, `hyprctl dispatch X` is shorthand for `hl.dispatch(X)`:
 ```toml
 [profiles.gaming_setup]
-config_file = "hyprconfigs/gaming.conf"
-post_apply_exec = "hyprctl dispatch moveworkspacetomonitor 2 DP-11"
+config_file = "hyprconfigs/gaming.lua"
+post_apply_exec = "hyprctl dispatch 'hl.dsp.workspace.move({ workspace = \"2\", monitor = \"DP-11\" })'"
 ```
+:::
+
+:::caution
+With `live_apply = true` (the default) the destination file is re-executed on every apply. Keep it idempotent: `hl.monitor`, `hl.workspace_rule`, named `hl.window_rule` and `hl.config` are fine, but `hl.bind`, `hl.on` or `hl.exec_cmd` would be registered/run again each time. Keep keybinds and autostart in `~/.config/hypr/hyprland.lua`.
 :::
 
 ## How do I use the TUI to create or edit profiles?
@@ -78,11 +81,25 @@ The TUI provides an interactive way to configure monitors and manage profiles. T
 
 The TUI places generated configuration between comment markers in your profile config files:
 
-```
-# <<<<< TUI AUTO START
-monitor=eDP-1,2880x1920@120,0x0,1.5
-monitor=DP-1,3840x2160@60,2880x0,1
-# <<<<< TUI AUTO END
+```lua
+-- <<<<< TUI AUTO START
+hl.monitor({
+	output = "desc:BOE NE135A1M-NY1",
+	mode = "2880x1920@120",
+	position = "0x0",
+	scale = 1.5,
+	transform = 0,
+	vrr = false,
+})
+hl.monitor({
+	output = "DP-1",
+	mode = "3840x2160@60",
+	position = "2880x0",
+	scale = 1,
+	transform = 0,
+	vrr = false,
+})
+-- <<<<< TUI AUTO END
 ```
 
 You can add additional settings outside these markers, and they will be preserved across TUI updates. This is useful for:
@@ -93,7 +110,7 @@ You can add additional settings outside these markers, and they will be preserve
 ### Manual editing
 
 From the HDM Profile view, you can manually edit files using your `$EDITOR`:
-- Edit the profile configuration file (the Hyprland config)
+- Edit the profile configuration file (the Hyprland Lua config/template)
 - Edit the HDM configuration file (the TOML config)
 
 For more details, see the [TUI documentation](./quickstart/tui).
@@ -102,9 +119,9 @@ For more details, see the [TUI documentation](./quickstart/tui).
 
 Use the `.ExtraMonitors` variable in your template:
 
-```go
+```lua
 {{- range .ExtraMonitors}}
-monitor={{.Name}},disable
+hl.monitor({ output = "{{.Name}}", disabled = true })
 {{- end }}
 ```
 
@@ -144,43 +161,43 @@ This is due to Go template whitespace trimming behavior. When you use `-}}`, it 
 
 ### Problem example
 
-```go
-# auto generated by hyprdynamicmonitors
+```lua
+-- auto generated by hyprdynamicmonitors
 
 {{- $laptop := index .MonitorsByTag "LaptopMonitor" -}}
 {{- $external := index .MonitorsByTag "ExternalMonitor" -}}
 
-monitor={{$laptop.Name}}, disable
-# change to your preferred external monitor config
-monitor={{$external.Name}},preferred,0x0,1
+hl.monitor({ output = "{{$laptop.Name}}", disabled = true })
+-- change to your preferred external monitor config
+hl.monitor({ output = "{{$external.Name}}", mode = "preferred", position = "0x0", scale = 1 })
 ```
 
-The `-}}` after the variable definitions removes the newline, causing `monitor={{$laptop.Name}}, disable` to be pulled up into the comment above it, creating one long comment line.
+The `-}}` after the variable definitions removes the newline, causing `hl.monitor({ output = "{{$laptop.Name}}", disabled = true })` to be pulled up into the `--` comment above it, creating one long comment line (so the monitor is silently not disabled).
 
 ### Solution 1: Remove trailing dash from the last template action
 
-```go
-# auto generated by hyprdynamicmonitors
+```lua
+-- auto generated by hyprdynamicmonitors
 
 {{- $laptop := index .MonitorsByTag "LaptopMonitor" -}}
 {{- $external := index .MonitorsByTag "ExternalMonitor" }}
 
-monitor={{$laptop.Name}}, disable
-# change to your preferred external monitor config
-monitor={{$external.Name}},preferred,0x0,1
+hl.monitor({ output = "{{$laptop.Name}}", disabled = true })
+-- change to your preferred external monitor config
+hl.monitor({ output = "{{$external.Name}}", mode = "preferred", position = "0x0", scale = 1 })
 ```
 
 ### Solution 2: Define all variables at the start, then add content
 
-```go
+```lua
 {{- $laptop := index .MonitorsByTag "LaptopMonitor" -}}
 {{- $external := index .MonitorsByTag "ExternalMonitor" -}}
 
 
-# auto generated by hyprdynamicmonitors
-# change to your preferred external monitor config
-monitor={{$laptop.Name}}, disable
-monitor={{$external.Name}},preferred,0x0,1
+-- auto generated by hyprdynamicmonitors
+-- change to your preferred external monitor config
+hl.monitor({ output = "{{$laptop.Name}}", disabled = true })
+hl.monitor({ output = "{{$external.Name}}", mode = "preferred", position = "0x0", scale = 1 })
 ```
 
 ### Key points
@@ -229,6 +246,10 @@ Yes! HyprDynamicMonitors can work alongside `nwg-displays`:
 3. `hyprdynamicmonitors` handles automatic profile switching based on connected monitors
 
 This combines the visual configuration of `nwg-displays` with the automatic profile management of `hyprdynamicmonitors`.
+
+:::note
+This fork renders Hyprland Lua only. If `nwg-displays` writes hyprlang `monitor=` lines, they have to be converted to `hl.monitor({ ... })` calls before they can be used as a profile config. The built-in [TUI](./quickstart/tui) writes Lua directly.
+:::
 
 ## Is UPower Running? UPower misconfigured or not running: failed to get property from UPower: Object does not exist at path “/org/freedesktop/UPower/devices/line_power_ACAD”
 
