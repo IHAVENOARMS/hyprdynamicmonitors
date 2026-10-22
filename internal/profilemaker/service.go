@@ -89,8 +89,8 @@ func (s *Service) EditExisting(profileName string, currentMonitors []*hypr.Monit
 	}
 
 	templateData := map[string]any{
-		"Monitors":     currentMonitors,
-		"MonitorLines": s.ToHyprLines(currentMonitors),
+		"Monitors":      currentMonitors,
+		"MonitorBlocks": hypr.MonitorSpecs(currentMonitors).ToLua(),
 	}
 
 	var rendered bytes.Buffer
@@ -110,8 +110,8 @@ func (s *Service) EditExisting(profileName string, currentMonitors []*hypr.Monit
 // or appends the content to the end if markers are not found
 func (s *Service) updateConfigFileWithContent(configFile, newContent string) error {
 	const (
-		startMarker = "# <<<<< TUI AUTO START"
-		endMarker   = "# <<<<< TUI AUTO END"
+		startMarker = "-- <<<<< TUI AUTO START"
+		endMarker   = "-- <<<<< TUI AUTO END"
 	)
 
 	// nolint:gosec
@@ -121,6 +121,7 @@ func (s *Service) updateConfigFileWithContent(configFile, newContent string) err
 			if err := utils.WriteAtomic(configFile, []byte(newContent)); err != nil {
 				return fmt.Errorf("cant write the config file: %w", err)
 			}
+			return nil
 		}
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
@@ -211,8 +212,8 @@ func (s *Service) render(currentMonitors hypr.MonitorSpecs, profile *config.Prof
 	}
 
 	templateData := map[string]any{
-		"Monitors":     currentMonitors,
-		"MonitorLines": s.ToHyprLines(currentMonitors),
+		"Monitors":      currentMonitors,
+		"MonitorBlocks": currentMonitors.ToLua(),
 	}
 
 	var rendered bytes.Buffer
@@ -290,64 +291,4 @@ func (s *Service) prepare(profileName, profileFileLocation string,
 		return nil, fmt.Errorf("cant set the profile path: %w", err)
 	}
 	return &profile, nil
-}
-
-func (s *Service) ToHyprLines(monitors hypr.MonitorSpecs) []string {
-	lines := []string{}
-
-	for _, monitor := range monitors {
-		fields := []string{}
-
-		identifier := monitor.Name
-		if monitor.Description != "" {
-			identifier = "desc:" + utils.EscapeHyprDescription(monitor.Description)
-		}
-		line := "monitor=" + identifier
-		fields = append(fields, line)
-		if monitor.Disabled {
-			fields = append(fields, "disable")
-			lines = append(lines, strings.Join(fields, ","))
-			continue
-		}
-
-		fields = append(fields, fmt.Sprintf("%dx%d@%.5f", monitor.Width, monitor.Height, monitor.RefreshRate))
-		fields = append(fields, fmt.Sprintf("%dx%d", monitor.X, monitor.Y))
-		fields = append(fields, fmt.Sprintf("%.8f", monitor.Scale))
-		fields = append(fields, "transform")
-		// nolint:perfsprint
-		fields = append(fields, fmt.Sprintf("%d", monitor.Transform))
-		if monitor.Vrr {
-			fields = append(fields, "vrr")
-			fields = append(fields, "1")
-		} else {
-			fields = append(fields, "vrr")
-			fields = append(fields, "0")
-		}
-		if monitor.TenBitdepth {
-			fields = append(fields, "bitdepth")
-			fields = append(fields, "10")
-		}
-		if monitor.HasNonDefaultColorPreset() {
-			fields = append(fields, "cm")
-			fields = append(fields, monitor.ColorPreset)
-		}
-		if monitor.HDR() && monitor.SdrBrightness != 1.0 {
-			fields = append(fields, "sdrbrightness")
-			fields = append(fields, fmt.Sprintf("%.2f", monitor.SdrBrightness))
-		}
-		if monitor.HDR() && monitor.SdrSaturation != 1.0 {
-			fields = append(fields, "sdrsaturation")
-			fields = append(fields, fmt.Sprintf("%.2f", monitor.SdrSaturation))
-		}
-		if monitor.HasMirror() {
-			fields = append(fields, "mirror")
-			fields = append(fields, monitor.Mirror)
-		}
-
-		lines = append(lines, strings.Join(fields, ","))
-	}
-
-	logrus.Debugf("Monitors freeze: %v", lines)
-
-	return lines
 }

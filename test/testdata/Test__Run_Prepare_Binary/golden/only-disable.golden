@@ -1,0 +1,3 @@
+hl.monitor({ output = "DP-1", disabled = false })
+hl.monitor({ output = "DP-2", disabled = false })
+hl.monitor({ output = "DP-3", disabled = false })

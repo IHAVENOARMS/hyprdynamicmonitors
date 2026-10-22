@@ -201,6 +201,9 @@ type GeneralSection struct {
 	DebounceTimeMs *int    `toml:"debounce_time_ms"`
 	PostApplyExec  *string `toml:"post_apply_exec"`
 	PreApplyExec   *string `toml:"pre_apply_exec"`
+	// LiveApply runs the rendered destination inside Hyprland (hyprctl eval dofile)
+	// after it changes, instead of relying on Hyprland noticing the file change.
+	LiveApply *bool `toml:"live_apply"`
 }
 
 type ScoringSection struct {
@@ -802,7 +805,7 @@ func (n *Notifications) Validate() error {
 
 func (g *GeneralSection) Validate() error {
 	if g.Destination == nil {
-		defaultDest := "$HOME/.config/hypr/monitors.conf"
+		defaultDest := "$HOME/.config/hypr/hyprdynamicmonitors.lua"
 		g.Destination = &defaultDest
 	}
 
@@ -811,6 +814,10 @@ func (g *GeneralSection) Validate() error {
 
 	if g.DebounceTimeMs == nil {
 		g.DebounceTimeMs = utils.IntPtr(3000)
+	}
+
+	if g.LiveApply == nil {
+		g.LiveApply = utils.BoolPtr(true)
 	}
 
 	return nil

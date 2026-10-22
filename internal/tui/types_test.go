@@ -139,7 +139,7 @@ func Test__Types_ToHyprCommand(t *testing.T) {
 
 			tt.after(monitors[0])
 
-			hyprCommand := monitors[0].ToHypr()
+			hyprCommand := monitors[0].ToLua()
 			dir := t.TempDir()
 			file := filepath.Join(dir, tt.name)
 			//nolint:gosec

@@ -18,19 +18,21 @@ type Service struct {
 }
 
 func NewService(cfg *config.Config) *Service {
-	monitorDisableRegex := regexp.MustCompile(`.*monitor.*=.*disable.*`)
+	monitorDisableRegex := regexp.MustCompile(`\bdisabled\s*=\s*true\b`)
 	return &Service{
 		cfg,
 		monitorDisableRegex,
 	}
 }
 
+// TruncateDestination re-enables every monitor the destination disables
+// (disabled = true -> disabled = false), so Hyprland never starts without an active display.
+// Lua comment lines are left untouched.
 func (s *Service) TruncateDestination() error {
 	file := s.cfg.Get().General.Destination
 	_, err := os.Stat(*file)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{"destination": *file}).Info("file does not exist")
-		//nolint:nilerr
 		return nil
 	}
 
@@ -40,17 +42,15 @@ func (s *Service) TruncateDestination() error {
 	}
 
 	lines := strings.Split(string(contents), "\n")
-
-	var filteredLines []string
-	for _, line := range lines {
-		if s.monitorDisableRegex.MatchString(line) {
-			logrus.Infof("Line %s will be removed", line)
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "--") || !s.monitorDisableRegex.MatchString(line) {
 			continue
 		}
-		filteredLines = append(filteredLines, line)
+		lines[i] = s.monitorDisableRegex.ReplaceAllString(line, "disabled = false")
+		logrus.Infof("Line %s will be re-enabled", line)
 	}
 
-	newContents := strings.Join(filteredLines, "\n")
+	newContents := strings.Join(lines, "\n")
 	if err := utils.WriteAtomic(*file, []byte(newContents)); err != nil {
 		return fmt.Errorf("cant write to %s destination file: %w", *file, err)
 	}

@@ -3,22 +3,22 @@
 │HyprDynamicMonitors Profile                        ││Profile Config Preview (template)                                                                       │ 
 │                                                   ││file                                                                                                    │ 
 │Profile: two                                       ││                                                                                                        │ 
-│                                                   ││┃   1 # <<<<< TUI AUTO START                                                                            │ 
-│Profile Details                                    ││┃   2 monitor=desc:BOE NE135A1M-NY1,2880x1920@120.00000,2020x1080,2.00000000,transform,0,vrr,1          │ 
-│Config File: file                                  ││┃   3 monitor=desc:Dell Inc. DELL U2723QE 5YNK3H3,3840x2160@60.00000,0x0,1.25000000,transform,0,vrr,0   │ 
-│Config Type: template                              ││┃   4 # <<<<< TUI AUTO END                                                                              │ 
-│Required Monitors:                                 ││┃   5                                                                                                   │ 
-│  • Desc: BOE NE135A1M-NY1                         ││┃                                                                                                       │ 
-│  • Desc: Dell Inc. DELL U2723QE...                ││┃                                                                                                       │ 
-│                                                   ││┃                                                                                                       │ 
-│New settings will be appended (or replaced         ││┃                                                                                                       │ 
-│depending on the `<<<<<` markers position) when    ││┃                                                                                                       │ 
-│applied (type `a`).                                ││┃                                                                                                       │ 
-│                                                   ││┃                                                                                                       │ 
-│If you're not running the daemon you likely want to││┃                                                                                                       │ 
-│follow up by rendering the profile into the hypr   ││┃                                                                                                       │ 
-│settings destination (type `R`).                   ││┃                                                                                                       │ 
-│                                                   ││┃                                                                                                       │ 
+│                                                   ││┃   1 -- <<<<< TUI AUTO START                                                                           │ 
+│Profile Details                                    ││┃   2 hl.monitor({                                                                                      │ 
+│Config File: file                                  ││┃   3     output = "desc:BOE NE135A1M-NY1",                                                             │ 
+│Config Type: template                              ││┃   4     mode = "2880x1920@120",                                                                       │ 
+│Required Monitors:                                 ││┃   5     position = "2020x1080",                                                                       │ 
+│  • Desc: BOE NE135A1M-NY1                         ││┃   6     scale = 2,                                                                                    │ 
+│  • Desc: Dell Inc. DELL U2723QE...                ││┃   7     transform = 0,                                                                                │ 
+│                                                   ││┃   8     vrr = true,                                                                                   │ 
+│New settings will be appended (or replaced         ││┃   9 })                                                                                                │ 
+│depending on the `<<<<<` markers position) when    ││┃  10 hl.monitor({                                                                                      │ 
+│applied (type `a`).                                ││┃  11     output = "desc:Dell Inc. DELL U2723QE 5YNK3H3",                                               │ 
+│                                                   ││┃  12     mode = "3840x2160@60",                                                                        │ 
+│If you're not running the daemon you likely want to││┃  13     position = "0x0",                                                                             │ 
+│follow up by rendering the profile into the hypr   ││┃  14     scale = 1.25,                                                                                 │ 
+│settings destination (type `R`).                   ││┃  15     transform = 0,                                                                                │ 
+│                                                   ││┃  16     vrr = false,                                                                                  │ 
 │                                                   │└────────────────────────────────────────────────────────────────────────────────────────────────────────┘ 
 │                                                   │┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐ 
 │                                                   ││Generated hypr config preview                                                                           │ 

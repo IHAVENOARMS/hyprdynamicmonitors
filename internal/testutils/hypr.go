@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,44 +49,72 @@ func SetupHyprSocket(ctx context.Context, t *testing.T, xdgRuntimeDir, signature
 	}
 }
 
+// SetupFakeHyprIPCWriter serves expectedCommands in order, one per connection.
+// Lua evals ("/eval ...", sent when the daemon live-applies a config) can arrive at any
+// point; they are answered with "ok" without consuming an expected command, and keep being
+// answered after the returned channel closes, until the listener is closed.
 func SetupFakeHyprIPCWriter(t *testing.T, listener net.Listener, responseData [][]byte,
 	expectedCommands []string, exitOnError bool,
 ) chan struct{} {
 	serverDone := make(chan struct{})
 	go func() {
-		defer close(serverDone)
-		for i, command := range expectedCommands {
-			respondToHyprIPC(t, listener, exitOnError, command, responseData, i)
+		i := 0
+		if len(expectedCommands) == 0 {
+			close(serverDone)
+		}
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				if i < len(expectedCommands) {
+					if !exitOnError {
+						assert.Nil(t, err, "failed to accept connection")
+					}
+					close(serverDone)
+				}
+				return
+			}
+			if !respondToHyprIPC(t, conn, expectedCommands, responseData, &i) {
+				continue
+			}
+			if i == len(expectedCommands) {
+				close(serverDone)
+			}
 		}
 	}()
 	return serverDone
 }
 
-func respondToHyprIPC(t *testing.T, listener net.Listener, exitOnError bool, command string, responseData [][]byte, i int) {
-	conn, err := listener.Accept()
-	if err != nil && exitOnError {
-		return
-	}
-	defer func() {
-		if conn != nil {
-			_ = conn.Close()
-		}
-	}()
-	assert.Nil(t, err, "failed to accept connection")
+// respondToHyprIPC answers a single connection and reports whether it consumed an expected command.
+func respondToHyprIPC(t *testing.T, conn net.Conn, expectedCommands []string, responseData [][]byte, i *int) bool {
+	defer func() { _ = conn.Close() }()
 
 	t.Log("listener accepted a connection")
 
 	s := bufio.NewScanner(conn)
 	if !s.Scan() {
 		t.Errorf("no data to read")
+		return false
 	}
-	buf := s.Bytes()
-	assert.Nil(t, err, "failed to read")
-	assert.Equal(t, command, string(buf), "wrong command")
+	command := s.Text()
 
-	_, err = conn.Write(responseData[i])
+	if strings.HasPrefix(command, "/eval ") {
+		t.Logf("answering eval: %s", command)
+		_, err := conn.Write([]byte("ok"))
+		assert.Nil(t, err, "failed to write eval response")
+		return false
+	}
+
+	if *i >= len(expectedCommands) {
+		t.Errorf("unexpected command after all expected ones were served: %s", command)
+		return false
+	}
+
+	assert.Equal(t, expectedCommands[*i], command, "wrong command")
+	_, err := conn.Write(responseData[*i])
 	assert.Nil(t, err, "failed to write response")
-	t.Logf("wrote response to the client %s", string(responseData[i]))
+	t.Logf("wrote response to the client %s", string(responseData[*i]))
+	*i++
+	return true
 }
 
 func SetupFakeHyprEventsServer(ctx context.Context, t *testing.T, listener net.Listener, events []string) chan struct{} {

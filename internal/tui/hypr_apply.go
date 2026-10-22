@@ -1,13 +1,14 @@
 package tui
 
 import (
+	"context"
 	"errors"
-	"fmt"
-	"os/exec"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fiffeek/hyprdynamicmonitors/internal/config"
 	"github.com/fiffeek/hyprdynamicmonitors/internal/generators"
+	"github.com/fiffeek/hyprdynamicmonitors/internal/hypr"
 	"github.com/fiffeek/hyprdynamicmonitors/internal/matchers"
 	"github.com/fiffeek/hyprdynamicmonitors/internal/power"
 	"github.com/fiffeek/hyprdynamicmonitors/internal/profilemaker"
@@ -27,17 +28,17 @@ func NewHyprApply(profileMaker *profilemaker.Service, generator *generators.Conf
 }
 
 func (h *HyprApply) ApplyCurrent(monitors []*MonitorSpec) tea.Cmd {
-	var lastError error
+	blocks := make([]string, 0, len(monitors))
 	for _, monitor := range monitors {
-		cmd := fmt.Sprintf("hyprctl keyword monitor \"%s\"", monitor.ToHypr())
-		// nolint:gosec,noctx
-		if err := exec.Command("sh", "-c", cmd).Run(); err != nil {
-			lastError = err
-			logrus.WithError(err).Error("cant apply hypr settings")
-		}
+		blocks = append(blocks, monitor.ToLua())
 	}
 
-	return OperationStatusCmd(OperationNameEphemeralApply, lastError)
+	err := hypr.Eval(context.Background(), strings.Join(blocks, " "))
+	if err != nil {
+		logrus.WithError(err).Error("cant apply hypr settings")
+	}
+
+	return OperationStatusCmd(OperationNameEphemeralApply, err)
 }
 
 func (h *HyprApply) CreateProfile(monitors []*MonitorSpec, name, file string) tea.Cmd {
@@ -69,6 +70,9 @@ func (h *HyprApply) GenerateThroughHDM(cfg *config.Config, profile *matchers.Mat
 		return OperationStatusCmd(OperationNameHydrate, err)
 	}
 	destination := *cfg.Get().General.Destination
-	_, err = h.generator.GenerateConfig(cfg.Get(), profile, hyprMonitors, powerState, lidState, destination, false)
+	changed, err := h.generator.GenerateConfig(cfg.Get(), profile, hyprMonitors, powerState, lidState, destination, false)
+	if err == nil && changed && *cfg.Get().General.LiveApply {
+		err = hypr.ApplyLuaFile(context.Background(), destination)
+	}
 	return OperationStatusCmd(OperationNameHydrate, err)
 }

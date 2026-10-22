@@ -6,7 +6,6 @@ import (
 	"math"
 
 	"github.com/fiffeek/hyprdynamicmonitors/internal/hypr"
-	"github.com/fiffeek/hyprdynamicmonitors/internal/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -458,8 +457,8 @@ func (m *MonitorSpec) NeedsDimensionsSwap() bool {
 	return m.Transform == 1 || m.Transform == 3
 }
 
-func (m *MonitorSpec) ToHyprMonitors() (*hypr.MonitorSpec, error) {
-	monitor := &hypr.MonitorSpec{
+func (m *MonitorSpec) toHyprSpec() *hypr.MonitorSpec {
+	return &hypr.MonitorSpec{
 		Name:            m.Name,
 		ID:              m.ID,
 		Description:     m.Description,
@@ -484,6 +483,10 @@ func (m *MonitorSpec) ToHyprMonitors() (*hypr.MonitorSpec, error) {
 		SdrSaturation:   m.SdrSaturation,
 		ColorPreset:     m.ColorPreset.Value(),
 	}
+}
+
+func (m *MonitorSpec) ToHyprMonitors() (*hypr.MonitorSpec, error) {
+	monitor := m.toHyprSpec()
 	if err := monitor.Validate(); err != nil {
 		return nil, fmt.Errorf("cant validate monitor: %w", err)
 	}
@@ -491,37 +494,9 @@ func (m *MonitorSpec) ToHyprMonitors() (*hypr.MonitorSpec, error) {
 	return monitor, nil
 }
 
-func (m *MonitorSpec) ToHypr() string {
-	// desc can be empty, use the name as a fallback
-	identifier := m.Name
-	if m.Description != "" {
-		identifier = "desc:" + utils.EscapeHyprDescription(m.Description)
-	}
-	if m.Disabled {
-		// nolint:perfsprint
-		return fmt.Sprintf("%s,disable", identifier)
-	}
-	line := fmt.Sprintf("%s,%dx%d@%.2f,%dx%d,%.8f,transform,%d", identifier, m.Width,
-		m.Height, m.RefreshRate, m.X, m.Y, m.Scale, m.HyprTransform())
-	if m.Vrr {
-		line += ",vrr,1"
-	}
-	if m.Bitdepth != DefaultBitdepth {
-		line = fmt.Sprintf("%s,bitdepth,%s", line, m.Bitdepth.Value())
-	}
-	if !m.ColorPreset.IsDefault() {
-		line = fmt.Sprintf("%s,cm,%s", line, m.ColorPreset.Value())
-	}
-	if m.SdrBrightness != 1.0 && m.ColorPreset.CanAdjustSdr() {
-		line = fmt.Sprintf("%s,sdrbrightness,%.2f", line, m.SdrBrightness)
-	}
-	if m.SdrSaturation != 1.0 && m.ColorPreset.CanAdjustSdr() {
-		line = fmt.Sprintf("%s,sdrsaturation,%.2f", line, m.SdrSaturation)
-	}
-	if m.Mirror != "none" {
-		line = fmt.Sprintf("%s,mirror,%s", line, m.Mirror)
-	}
-	return line
+// ToLua renders the monitor as a single-line hl.monitor call.
+func (m *MonitorSpec) ToLua() string {
+	return m.toHyprSpec().ToLuaInline()
 }
 
 type MonitorRectangle struct {

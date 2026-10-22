@@ -1,3 +1,4 @@
-# <<<<< TUI
-monitor=eDP-1,2880x1920@120.00000,0x0,2.0,vrr,1
-# <<<<< TUI
+-- <<<<< TUI
+hl.monitor({ output = "eDP-1", mode = "2880x1920@120", position = "0x0", scale = 2, vrr = true })
+hl.monitor({ output = "DP-11", disabled = false })
+-- <<<<< TUI

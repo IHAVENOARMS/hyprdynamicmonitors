@@ -231,6 +231,12 @@ func (s *Service) UpdateOnce(ctx context.Context) error {
 		return nil
 	}
 
+	if !s.serviceConfig.DryRun && *cfg.General.LiveApply {
+		if err := hypr.ApplyLuaFile(ctx, destination); err != nil {
+			logrus.WithFields(profileFields).WithError(err).Error("cant live apply the rendered config")
+		}
+	}
+
 	s.tryExec(ctx, matchedProfile.Profile.PostApplyExec, cfg.General.PostApplyExec, utils.PostExecLogID)
 
 	if err := s.notificationsService.NotifyProfileApplied(matchedProfile.Profile, s.serviceConfig.DryRun); err != nil {

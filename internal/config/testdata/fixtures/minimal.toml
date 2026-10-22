@@ -10,8 +10,9 @@ match_description_using_regex = false
 match_name_using_regex = false
 
 [general]
-destination = "/.config/hypr/monitors.conf"
+destination = "/.config/hypr/hyprdynamicmonitors.lua"
 debounce_time_ms = 3000
+live_apply = true
 
 [scoring]
 name_match = 1

@@ -329,7 +329,7 @@ func TestGeneralSectionValidate(t *testing.T) {
 			}
 
 			if tt.name == "nil destination gets default" {
-				if !containsString(*tt.general.Destination, ".config/hypr/monitors.conf") {
+				if !containsString(*tt.general.Destination, ".config/hypr/hyprdynamicmonitors.lua") {
 					t.Errorf("expected destination to contain default path, got '%s'", *tt.general.Destination)
 				}
 			} else {

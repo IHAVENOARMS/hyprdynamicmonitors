@@ -12,11 +12,11 @@ import (
 var prepareCmd = &cobra.Command{
 	Use:   "prepare",
 	Short: "Clean up monitor configuration before daemon start",
-	Long: `Prepares the monitor configuration file by removing monitor disable commands.
+	Long: `Prepares the monitor configuration file by re-enabling disabled monitors.
 
 This command should be run before starting Hyprland to ensure
-a clean state. It removes any 'monitor=...,disable' lines from the destination file,
-which prevents an issue with no active displays (Hyprland does not launch).
+a clean state. It rewrites every 'disabled = true' in the destination Lua file
+to 'disabled = false', which prevents an issue with no active displays (Hyprland does not launch).
 
 This is particularly useful when running with systemd, where you want to ensure the
 monitor configuration is reset before the daemon starts managing profiles.

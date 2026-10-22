@@ -26,7 +26,7 @@ This command captures your current monitor setup and creates two artifacts:
 2. A new profile entry in your configuration file that references this template
 
 TEMPLATE FILE:
-The Go template will be saved to hyprconfigs/{profile-name}.go.tmpl by default, or to a
+The Go template will be saved to hyprconfigs/{profile-name}.lua.tmpl by default, or to a
 custom location specified with --config-file-location. This template can be edited after
 creation to customize the configuration.
 
@@ -43,7 +43,7 @@ PREREQUISITES:
 This is useful for quickly creating new profiles based on your current working setup.`,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		if profileFileLocation == "" && profileName != "" {
-			profileFileLocation = fmt.Sprintf("hyprconfigs/%s.go.tmpl", profileName)
+			profileFileLocation = fmt.Sprintf("hyprconfigs/%s.lua.tmpl", profileName)
 		}
 		return nil
 	},
@@ -87,6 +87,6 @@ func init() {
 		&profileFileLocation,
 		"config-file-location",
 		"",
-		"Where to put the generated config file template (defaults to hyprconfigs/$PROFILE_NAME.go.tmpl)",
+		"Where to put the generated config file template (defaults to hyprconfigs/$PROFILE_NAME.lua.tmpl)",
 	)
 }

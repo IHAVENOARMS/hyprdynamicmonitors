@@ -105,7 +105,7 @@ func (p *ProfileNamePicker) Update(msg tea.Msg) tea.Cmd {
 			} else {
 				p.textInput.SetValue("")
 				logrus.Debugf("Setting name to: %s", text)
-				file := fmt.Sprintf("hyprconfigs/%s.go.tmpl", text)
+				file := fmt.Sprintf("hyprconfigs/%s.lua.tmpl", text)
 				cmds = append(cmds, createNewProfileCmd(text, file))
 			}
 		}
