@@ -17,6 +17,11 @@
 An event-driven service with an interactive TUI that automatically manages Hyprland monitor configurations based on connected displays, power and lid state.
 
 > [!IMPORTANT]
+> **Why this fork exists:** Hyprland switched to Lua-based configs, and the original
+> [fiffeek/hyprdynamicmonitors](https://github.com/fiffeek/hyprdynamicmonitors) did not support them when this fork was
+> created (October 2026, see [issue #151](https://github.com/fiffeek/hyprdynamicmonitors/issues/151)): it only wrote
+> hyprlang `monitor=` lines, which a Lua config never reads. This fork was made to keep the tool working on Lua configs.
+>
 > **Hyprland Lua only.** This fork targets Hyprland's Lua configuration (`~/.config/hypr/hyprland.lua`).
 > It renders `hl.monitor({ ... })` calls instead of hyprlang `monitor=` lines, and it no longer uses
 > `hyprctl keyword` (rejected by Hyprland under a Lua config). If you still use `hyprland.conf`, use upstream
