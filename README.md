@@ -71,6 +71,7 @@ A full guide is available at [Dynamic Profile Modes](https://fiffeek.github.io/h
    * [Hyprland Lua](#hyprland-lua)
       * [Migrating an existing template](#migrating-an-existing-template)
       * [Live apply](#live-apply)
+         * [Profile-specific keybinds](#profile-specific-keybinds)
    * [Documentation](#documentation)
    * [Examples](#examples)
    * [Runtime Requirements](#runtime-requirements)
@@ -219,6 +220,29 @@ re-run on every apply, it should only contain idempotent calls: `hl.monitor`, `h
 `hl.window_rule` *with a `name`* (named rules are updated, unnamed ones are added again). Keep `hl.bind`,
 `hl.on(...)` and autostart `hl.exec_cmd(...)` in `hyprland.lua` - in the destination they would be registered or run again
 on every apply. Set `live_apply = false` to rely on Hyprland reloading its config instead.
+
+#### Profile-specific keybinds
+
+A plain `hl.bind` in a profile stacks a duplicate on every apply (one key press then fires the action several times;
+toggles cancel out). If a profile really needs its own bind, unbind the combo first so re-running replaces it:
+
+```lua
+-- Replace any existing bind on this combo instead of stacking a duplicate on every apply.
+local function rebind(keys, dispatcher, opts)
+	hl.unbind(keys)
+	return hl.bind(keys, dispatcher, opts)
+end
+
+rebind("SUPER + P", hl.dsp.exec_cmd("some-profile-specific-thing"))
+```
+
+- Spell the combo exactly like the bind you are replacing. Spacing does not matter, but modifier order does:
+  `hl.unbind("CTRL + SUPER + P")` does not remove a bind made as `"SUPER + CTRL + P"`.
+- This overwrites globally, including binds from `hyprland.lua`, and switching to another profile does not restore
+  the original - it only comes back on a full Hyprland reload. Either `rebind` the combo in every profile, or keep one
+  bind in `hyprland.lua` and decide what it does when pressed (bind a Lua function).
+- Don't use the handle returned by `hl.bind` (`:remove()`) for this: it removes every bind on the combo, so the first
+  apply keeps your base bind and later applies silently delete it.
 
 ## Documentation
 

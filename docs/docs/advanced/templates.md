@@ -11,7 +11,7 @@ Monitor names and descriptions are inserted inside Lua strings, e.g. `output = "
 :::
 
 :::caution Idempotency
-With `live_apply = true` (the default) the rendered file is re-executed inside Hyprland on every apply. Keep it to idempotent calls (`hl.monitor`, `hl.workspace_rule`, named `hl.window_rule`, `hl.config`). Do not put `hl.bind` or `hl.on` in templates; they would be registered again on every apply. Keep those in `~/.config/hypr/hyprland.lua`.
+With `live_apply = true` (the default) the rendered file is re-executed inside Hyprland on every apply. Keep it to idempotent calls (`hl.monitor`, `hl.workspace_rule`, named `hl.window_rule`, `hl.config`). Do not put `hl.bind` or `hl.on` in templates; they would be registered again on every apply. Keep those in `~/.config/hypr/hyprland.lua`. If a profile really needs its own keybind, call `hl.unbind(keys)` right before `hl.bind(keys, ...)` with the exact same key spelling (modifier order matters) so each apply replaces the bind instead of duplicating it. Note this also replaces a bind on that combo from `hyprland.lua`, and it is not restored when switching profiles until Hyprland reloads.
 :::
 
 ## Template Variables
